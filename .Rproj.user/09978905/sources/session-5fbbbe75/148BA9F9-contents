@@ -28,7 +28,7 @@ An end-to-end pipeline for CARMA-coded parent-infant warmth data, from raw secon
 :::
 
 ::: {.g-col-12 .g-col-md-6}
-### [Still Face Processing](projects/still-face/6M_Still_Face_Raw_Import.Rmd)
+### [Still Face Processing](projects/still-face/6M_Still_Face_Raw_Import.qmd)
 A raw-to-analysis-ready pipeline for the Still Face paradigm, importing per-subject behavioral event logs, validating episode boundaries (Baseline / Still Face / Reunion), and computing duration and joint-attention variables for infant, parent, and dyadic behavior.
 
 **Tools:** R
@@ -45,6 +45,4 @@ A latent class analysis of Add Health survey data, characterizing indicator and 
 
 ## Background
 
-[Two or three sentences pulling from your profile: Ph.D. in developmental psychology, Penn State, focus areas, methods toolkit. Keep this short, since your CV/LinkedIn carries the full detail.]
-
-[Contact link / LinkedIn / email]
+Rachel Marcus, Ph.D., is a developmental psychologist whose work centers on adolescent risk-taking, parenting, prenatal substance exposure, and developmental cascades, with a broader interest in prevention science and early child development. She completed her doctoral training at Penn State in the Development, Risk, and Resilience Lab under Dr. Rina Eiden, building a methods toolkit that spans structural equation and latent variable modeling, latent class/profile analysis, and intensive longitudinal data analysis in R. She brings over seven years of experience across federally funded behavioral research, clinical trial management, and data infrastructure work.

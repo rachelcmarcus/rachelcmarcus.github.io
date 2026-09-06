@@ -28,7 +28,7 @@ An end-to-end pipeline for CARMA-coded parent-infant warmth data, from raw secon
 :::
 
 ::: {.g-col-12 .g-col-md-6}
-### [Still Face Processing](projects/still-face/6M_Still_Face_Raw_Import.Rmd)
+### [Still Face Processing](projects/still-face/6M_Still_Face_Raw_Import.qmd)
 A raw-to-analysis-ready pipeline for the Still Face paradigm, importing per-subject behavioral event logs, validating episode boundaries (Baseline / Still Face / Reunion), and computing duration and joint-attention variables for infant, parent, and dyadic behavior.
 
 **Tools:** R

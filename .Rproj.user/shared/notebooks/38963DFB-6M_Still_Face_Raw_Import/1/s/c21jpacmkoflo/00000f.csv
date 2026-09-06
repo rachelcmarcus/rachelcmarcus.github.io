@@ -1,0 +1,4 @@
+"0","#| label: blank-row-log"
+"0","# Running log of blank/empty template rows found and dropped, across"
+"0","# every subject -- rebuilt fresh each time the pipeline runs."
+"0","BLANK_ROW_LOG <- tibble(ID = character(), file = character(), n_blank_rows = integer())"

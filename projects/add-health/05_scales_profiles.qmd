@@ -1,0 +1,121 @@
+---
+title: "ASP Scale Profiles"
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+source("_setup.R")
+```
+
+## Data Import
+
+ASP scale profiles across latent classes are read in from the project's Excel results workbook. Import code is included but not rendered below.
+
+```{r}
+#| label: import
+#| echo: false
+asp_raw <- read_excel(data_path, sheet = "asp profiles R")
+```
+
+## Build Dataframes
+
+Standardized profile dataframe (z-scored predictors + % male).
+
+```{r}
+#| label: build-profile
+pred_order <- c("support", "involve", "warmth", "Zsupport", "Zinvolve", "Zwarmth")
+
+display_labels <- c(
+    "support" = "Autonomy Support",
+  "involve"    = "Parental Involvement",
+    "warmth"     = "Parental Warmth",
+    "support" = "Autonomy Support",
+  "involve"    = "Parental Involvement",
+    "warmth"     = "Parental Warmth"
+)
+
+asp_df <- asp_raw %>%
+  filter(Covariate %in% pred_order) %>%
+  pivot_longer(
+    cols = c(Cluster1, Cluster2, Cluster3, Cluster4),
+    names_to = "cluster", values_to = "value"
+  ) %>%
+  mutate(
+    cluster   = factor(recode(cluster,
+                   Cluster1 = "C1", Cluster2 = "C2",
+                   Cluster3 = "C3", Cluster4 = "C4"),
+                 levels = c("C1","C2","C3","C4")),
+    Covariate = factor(Covariate, levels = pred_order),
+    display   = factor(display_labels[as.character(Covariate)],
+                       levels = display_labels[pred_order])
+  )
+```
+
+
+## Profile Figures (Standardized)
+
+```{r}
+#| label: fig-asp-Zsupport
+
+p_aspZ <- ggplot(asp_df %>% filter(Covariate == "Zsupport"),
+                aes(x = cluster, y = value, fill = cluster)) +
+  geom_col(width = bar_width) +
+  geom_hline(yintercept = 0, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  scale_fill_manual(values = cluster_colors, name = "Cluster") +
+  scale_y_continuous(name = "Mean",
+                     expand = expansion(mult = c(0.08, 0.08)),
+                     labels = number_format(accuracy = 0.01)) +
+  labs(title = "Autonomy Support",
+       caption = "Mean standardized (z-scored) autonomy-supportive parenting score by latent class.") +
+  or_theme +  theme(
+    axis.title.x = element_blank())
+print(p_aspZ)
+ggsave(file.path(fig_asp_profiles, "stand_asp.png"),
+       plot = p_aspZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
+```
+
+```{r}
+#| label: fig-asp-Zinvolve
+
+p_involveZ <- ggplot(asp_df %>% filter(Covariate == "Zinvolve"),
+                aes(x = cluster, y = value, fill = cluster)) +
+  geom_col(width = bar_width) +
+  geom_hline(yintercept = 0, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  scale_fill_manual(values = cluster_colors, name = "Cluster") +
+  scale_y_continuous(name = "Mean",
+                     expand = expansion(mult = c(0.08, 0.08)),
+                     labels = number_format(accuracy = 0.01)) +
+  labs(title = "Parental Involvement",
+       caption = "Mean standardized (z-scored) parental involvement score by latent class.") +
+  or_theme +  theme(
+    axis.title.x = element_blank())
+print(p_involveZ)
+ggsave(file.path(fig_asp_profiles, "stand_involve.png"),
+       plot = p_involveZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
+```
+
+```{r}
+#| label: fig-asp-Zwarmth
+
+p_warmthZ <- ggplot(asp_df %>% filter(Covariate == "Zwarmth"),
+                aes(x = cluster, y = value, fill = cluster)) +
+  geom_col(width = bar_width) +
+  geom_hline(yintercept = 0, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  scale_fill_manual(values = cluster_colors, name = "Cluster") +
+  scale_y_continuous(name = "Mean",
+                     expand = expansion(mult = c(0.08, 0.08)),
+                     labels = number_format(accuracy = 0.01)) +
+  labs(title = "Parental Warmth",
+       caption = "Mean standardized (z-scored) parental warmth score by latent class.") +
+  or_theme +  theme(
+    axis.title.x = element_blank())
+print(p_warmthZ)
+ggsave(file.path(fig_asp_profiles, "stand_warmth.png"),
+       plot = p_warmthZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
+```
+

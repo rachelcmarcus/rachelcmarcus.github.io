@@ -1,0 +1,672 @@
+﻿* Encoding: UTF-8.
+************************************************************************************OPEN DATA***************************************************************************************************************
+***Open Add Health Wave 1 processed data (parent + in-home merged).
+get file ="C:\Users\rcm5550\OneDrive - The Pennsylvania State University\SPR Cup 2026\Analysis\AddHealth_AllData.sav".
+********************************************************************************************************************************************************************************************************************
+
+******************************************************************************STRUCTURAL DISADVANTAGE - INDIVIDUAL LEVEL************************************************************************************
+
+*****************************RACE / ETHNICITY.
+*Q: Hispanic origin (H1GI4); race categories (H1GI6A-E).
+*Creates dummy indicators and a single categorical race variable.
+***check frequencies for zeros.
+frequencies variables = H1GI4 H1GI6A H1GI6B H1GI6C H1GI6D H1GI6E /statistics = all.
+*answer codes (H1GI4): 0 = no, 1 = yes, 6 = refused, 8 = don't know.
+*answer codes (H1GI6A-E): 0 = not marked, 1 = marked, 8 = don't know.
+
+*Step 1: Create race/ethnicity dummy indicators.
+if (H1GI4 eq 1) hispanic = 1.
+if (H1GI4 eq 0) hispanic = 0.
+if (H1GI4 eq 6 or H1GI4 eq 8) hispanic = -99.
+recode hispanic (-99 = sysmis).
+variable labels hispanic "Hispanic/Latino origin (H1GI4, 1=yes)".
+value labels hispanic 0 "no" 1 "yes".
+execute.
+
+if (H1GI6A eq 1) race_white = 1.
+if (H1GI6A eq 0) race_white = 0.
+if (H1GI6A eq 8) race_white = -99.
+recode race_white (-99 = sysmis).
+variable labels race_white "White/Caucasian race (H1GI6A)".
+value labels race_white 0 "not marked" 1 "marked".
+execute.
+
+if (H1GI6B eq 1) race_black = 1.
+if (H1GI6B eq 0) race_black = 0.
+if (H1GI6B eq 8) race_black = -99.
+recode race_black (-99 = sysmis).
+variable labels race_black "Black/African American race (H1GI6B)".
+value labels race_black 0 "not marked" 1 "marked".
+execute.
+
+if (H1GI6C eq 1) race_natam = 1.
+if (H1GI6C eq 0) race_natam = 0.
+if (H1GI6C eq 8) race_natam = -99.
+recode race_natam (-99 = sysmis).
+variable labels race_natam "American Indian/Native American race (H1GI6C)".
+value labels race_natam 0 "not marked" 1 "marked".
+execute.
+
+if (H1GI6D eq 1) race_asian = 1.
+if (H1GI6D eq 0) race_asian = 0.
+if (H1GI6D eq 8) race_asian = -99.
+recode race_asian (-99 = sysmis).
+variable labels race_asian "Asian/Pacific Islander race (H1GI6D)".
+value labels race_asian 0 "not marked" 1 "marked".
+execute.
+
+*Count how many racial categories marked; create categorical race variable.
+*Most restrictive condition (multiracial) first per SPSS sequential if-statement rules.
+compute race_sum = sum(race_white, race_black, race_natam, race_asian).
+execute.
+
+if (hispanic eq 1) race_cat = 5.
+if (hispanic eq 0 and race_sum ge 2) race_cat = 6.
+if (hispanic eq 0 and race_sum eq 1 and race_white eq 1) race_cat = 1.
+if (hispanic eq 0 and race_sum eq 1 and race_black eq 1) race_cat = 2.
+if (hispanic eq 0 and race_sum eq 1 and race_natam eq 1) race_cat = 3.
+if (hispanic eq 0 and race_sum eq 1 and race_asian eq 1) race_cat = 4.
+variable labels race_cat "Race/ethnicity category (structural disadvantage indicator)".
+value labels race_cat
+    1 "Non-Hispanic White"
+    2 "Non-Hispanic Black"
+    3 "American Indian/Native American"
+    4 "Asian/Pacific Islander"
+    5 "Hispanic/Latino"
+    6 "Multiracial".
+execute.
+
+*check frequencies of new variable.
+frequencies variables = race_cat hispanic /statistics = all.
+
+*****************************INDIVIDUAL DISADVANTAGE INDEX.
+*Items: race_cat (minority status dummy), usbornD (foreign-born), suspended, expelled, graderetain.
+*Create minority status dummy before summing: 1 = any non-white non-Hispanic = structural disadvantage.
+*Note: race_cat structure: 1=White, 2=Black, 3=AI, 4=Asian, 5=Hispanic, 6=Multiracial.
+
+compute minorityD = 0.
+if (race_cat ge 2 and race_cat le 6) minorityD = 1.
+variable labels minorityD "Racial/ethnic minority status dummy (1=non-white/Hispanic, structural disadvantage)".
+value labels minorityD 0 "non-Hispanic white" 1 "racial/ethnic minority".
+execute.
+
+*Check distributions.
+frequencies variables =  minorityD /statistics = all.
+*******************************************************************************
+
+*****************************SCHOOL SUSPENSION HISTORY.
+*Q: Have you ever been suspended from school? (H1ED7).
+***check frequencies for zeros.
+frequencies variables = H1ED7 /statistics = all.
+*answer codes: 0 = no, 1 = yes, 6 = refused, 7 = legit skip, 8 = don't know.
+
+if (H1ED7 eq 1) suspended = 1.
+if (H1ED7 eq 0) suspended = 0.
+if (H1ED7 eq 6 or H1ED7 eq 8) suspended = -99.
+if (H1ED7 eq 7) suspended = -99.
+recode suspended (-99 = sysmis).
+variable labels suspended "Ever suspended from school (H1ED7, 1=yes, institutional disadvantage)".
+value labels suspended 0 "no" 1 "yes".
+execute.
+
+frequencies variables = suspended /statistics = all.
+
+
+*****************************SCHOOL EXPULSION HISTORY.
+*Q: Have you ever been expelled from school? (H1ED9).
+***check frequencies for zeros.
+frequencies variables = H1ED9 /statistics = all.
+*answer codes: 0 = no, 1 = yes, 6 = refused, 7 = legit skip, 8 = don't know.
+
+if (H1ED9 eq 1) expelled = 1.
+if (H1ED9 eq 0) expelled = 0.
+if (H1ED9 eq 6 or H1ED9 eq 8) expelled = -99.
+if (H1ED9 eq 7) expelled = -99.
+recode expelled (-99 = sysmis).
+variable labels expelled "Ever expelled from school (H1ED9, 1=yes, institutional disadvantage)".
+value labels expelled 0 "no" 1 "yes".
+execute.
+
+frequencies variables = expelled /statistics = all.
+
+
+*****************************GRADE RETENTION.
+*Q: Have you ever repeated a grade or been held back? (H1ED5).
+***check frequencies for zeros.
+frequencies variables = H1ED5 /statistics = all.
+*answer codes: 0 = no, 1 = yes, 6 = refused, 7 = legit skip, 8 = don't know.
+
+if (H1ED5 eq 1) graderetain = 1.
+if (H1ED5 eq 0) graderetain = 0.
+if (H1ED5 eq 6 or H1ED5 eq 8) graderetain = -99.
+if (H1ED5 eq 7) graderetain = -99.
+recode graderetain (-99 = sysmis).
+variable labels graderetain "Ever retained a grade (H1ED5, 1=yes, academic disadvantage)".
+value labels graderetain 0 "no" 1 "yes".
+execute.
+
+frequencies variables = graderetain /statistics = all.
+
+
+reliability variables = suspended expelled graderetain
+    /scale('school') all.
+*alpha = .43.
+
+*Sum of school disadvantage experiences (0-3 scale: suspension, expulsion, retention).
+compute school_disadv = sum(suspended, expelled, graderetain).
+variable labels school_disadv
+    "School institutional disadvantage index (sum: suspension+expulsion+retention, 0-3)".
+execute.
+
+*Check distributions.
+frequencies variables = school_disadv /statistics = all.
+
+*standardize based on weight filtered dataset.
+delete variables  Zschool_disadv.
+    *delete variable if previously standardized with whole sample. 
+temporary.
+    *temporary can't be used with delete.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = school_disadv / save.
+*******************************************************************************
+
+
+******************************************************************************STRUCTURAL DISADVANTAGE - FAMILY LEVEL**********************************************************************************
+
+*****************************HOUSEHOLD INCOME.
+*Q: About how much total income did your family receive in 1994? (PA55).
+***check frequencies for zeros.
+frequencies variables = PA55 /statistics = all.
+*Missing: 9996 = refused, system missing.
+
+if (PA55 ge 0 and PA55 le 999) famincomecat = PA55.
+if (PA55 eq 9996) famincomecat = -99.
+recode famincomecat (-99 = sysmis).
+variable labels famincomecat
+    "Total family income 1994 (PA55, continuous $, higher = more income)".
+execute.
+
+frequencies variables = famincomecat /statistics = all.
+
+*****************************PARENT EDUCATION.
+*Q: How far did you go in school? (PA12, primary parent respondent).
+***check frequencies for zeros.
+frequencies variables = PA12 /statistics = all.
+*answer codes: 1=8th grade or less, 2=some HS, 3=voc/trade school, 4=HS grad, 5=GED, 
+                6 = voc/trade, 7=some college, 8=college grad, 9=graduate/professional degree
+               Missing: 96=refused, system missing.
+
+if (PA12 eq 10) pareduc = 0.
+if (PA12 eq 1) pareduc = 1.
+if (PA12 eq 2) pareduc = 2.
+if (PA12 eq 3) pareduc = 3.
+if (PA12 eq 4 or PA12 eq 5) pareduc = 4.
+    *combine high school grad and GED.
+if (PA12 eq 6) pareduc = 5.
+if (PA12 eq 7) pareduc = 6.
+if (PA12 eq 8) pareduc = 7.
+if (PA12 eq 9) pareduc = 8.
+if (PA12 eq 96) pareduc = -99.
+recode pareduc (-99 = sysmis).
+variable labels pareduc
+    "Parent education  (PA12, 0=no school, 8=advanced degree)".
+value labels pareduc
+    0 "No school"
+    1 "8th grade or less"
+    2 "Some high school"
+    3 "Vocational/trade school instead of high school"
+    4 "HS grad/GED"
+    5 "Vocational/trade school after high school"
+    6 "Some college"
+    7 "College graduate"
+    8 "Graduate/professional degree".
+execute.
+
+frequencies variables = pareduc /statistics = all.
+
+*****************************PARTNER EDUCATION.
+*Q: How far did your partner go in school? (PB8, primary parent respondent).
+***check frequencies for zeros.
+frequencies variables = PB8 /statistics = all.
+*answer codes: 1=8th grade or less, 2=some HS, 3=voc/trade school, 4=HS grad, 5=GED, 
+                6 = voc/trade, 7=some college, 8=college grad, 9=graduate/professional degree
+               Missing: 96=refused, system missing.
+
+if (PB8 eq 10 or PB8 eq 12) pareduc_partner = 0.
+    *combine no school and doesn't know if school.
+if (PB8 eq 1 or PB8 eq 11) pareduc_partner = 1.
+    *combine less than high school with doesn't know how far.
+if (PB8 eq 2) pareduc_partner = 2.
+if (PB8 eq 3) pareduc_partner = 3.
+if (PB8 eq 4 or PB8 eq 5) pareduc_partner = 4.
+    *combine high school grad and GED.
+if (PB8 eq 6) pareduc_partner = 5.
+if (PB8 eq 7) pareduc_partner = 6.
+if (PB8 eq 8) pareduc_partner = 7.
+if (PB8 eq 9) pareduc_partner = 8.
+if (PB8 eq 96) pareduc_partner = -99.
+recode pareduc_partner (-99 = sysmis).
+variable labels pareduc_partner
+    "Parent partner education  (PB8, 0=no school, 8=advanced degree)".
+value labels pareduc_partner
+    0 "No school"
+    1 "8th grade or less"
+    2 "Some high school"
+    3 "Vocational/trade school instead of high school"
+    4 "HS grad/GED"
+    5 "Vocational/trade school after high school"
+    6 "Some college"
+    7 "College graduate"
+    8 "Graduate/professional degree".
+execute.
+
+frequencies variables = pareduc_partner /statistics = all.
+
+*****************************PARENTAL EDUCATION COMPOSITE.
+*Average parent education across available parents (pareduc = primary respondent; pareduc_partner = if available).
+
+compute pareduc_avg = mean(pareduc, pareduc_partner).
+variable labels pareduc_avg
+    "Average parental education 0-6 scale (mean of available parents, higher = more education)".
+execute.
+
+frequencies variables = pareduc_avg /statistics = all.
+*******************************************************************************
+
+*****************************PARENT EMPLOYMENT - FULL TIME.
+*Q: Are you employed full time? (PA17).
+***check frequencies for zeros.
+frequencies variables = PA17 /statistics = all.
+*answer codes: 0 = no, 1 = yes, 6 = refused, 7 = legit skip [does not work outside home].
+
+if (PA17 eq 1) parentfulltimeD = 1.
+if (PA17 eq 0) parentfulltimeD = 0.
+if (PA17 eq 6) parentfulltimeD = -99.
+if (PA17 eq 7) parentfulltimeD = 0.    
+    *not working outside home set to economically disadvantaged. 
+recode parentfulltimeD (-99 = sysmis).
+variable labels parentfulltimeD "Parent employed full time (PA17, 1=yes)".
+value labels parentfulltimeD 0 "not employed full time" 1 "employed full time".
+execute.
+
+frequencies variables = parentfulltimeD /statistics = all.
+
+*****************************PARTNER EMPLOYMENT - FULL TIME.
+*Q: Is partner employed full time? (PB13).
+***check frequencies for zeros.
+frequencies variables = PB13  /statistics = all.
+*answer codes: 0 = no, 1 = yes, 6 = refused, 7 = legit skip [doesn't work outside home].
+
+if (PB13 eq 1) partnerfulltimeD = 1.
+if (PB13 eq 0) partnerfulltimeD = 0.
+if (PB13 eq 6) partnerfulltimeD = -99.
+if (PB13 eq 7) partnerfulltimeD = 0.    
+    *not working outside home set to economically disadvantaged. 
+recode partnerfulltimeD (-99 = sysmis).
+variable labels partnerfulltimeD "Partner employed full time (PB13, 1=yes)".
+value labels partnerfulltimeD 0 "not employed full time" 1 "employed full time".
+execute.
+
+frequencies variables = partnerfulltimeD /statistics = all.
+
+*****************************PARENTAL EMPLOYMENT COMPOSITE.
+*Average parent fulltime employment across available parents 
+
+compute parentemploy = mean(parentfulltimeD, partnerfulltimeD).
+variable labels parentemploy
+    "Average parental employment 0-1 scale (mean of available parents, higher = employed)".
+execute.
+
+frequencies variables = parentemploy /statistics = all.
+
+*****************************FAMILY SOCIOECONOMIC DISADVANTAGE COMPOSITE.
+*Components: famincomecat (continuous $, higher = more income), pareduc_avg (0-8, higher = more education),
+*            parentemploy (0-1, higher = more employment).
+*Standardizing each component to z-score then reverse code so higher is more disadvantage, then averaging.
+
+
+*standardize based on weight filtered dataset.
+delete variables  Zfamincomecat  Zpareduc_avg Zparentemploy.
+    *delete variable if previously standardized with whole sample. 
+temporary.
+    *temporary can't be used with delete.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = famincomecat pareduc_avg parentemploy /save.
+*Creates Zfamincomecat, Zpareduc_avg, Zparentemploy.
+execute.
+
+compute Zfamincomecat_r = Zfamincomecat * -1.
+variable labels Zfamincomecat_r
+    "Family income z-scored reversed (higher = lower income = more disadvantage)".
+execute.
+
+compute Zpareduc_avg_r = Zpareduc_avg * -1.
+variable labels Zpareduc_avg_r
+    "Average parental education z-scored reversed (higher = less education = more disadvantage)".
+execute.
+
+compute Zparentemploy_r = Zparentemploy * -1.
+variable labels Zparentemploy_r
+    "Average parental employment z-scored reversed (higher = less employed = more disadvantage)".
+execute.
+
+compute famSES_disadv = mean(Zfamincomecat_r, Zpareduc_avg_r, Zparentemploy_r).
+variable labels famSES_disadv
+    "Family SES disadvantage composite: mean of z-scored reversed income, education, employment (higher = more disadvantage)".
+execute.
+
+frequencies variables = famSES_disadv /statistics = all.
+
+reliability variables = famincomecat pareduc_avg parentemploy
+    /scale('famSES') all /statistics = all.
+
+*standardize based on weight filtered dataset.
+temporary.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = famSES_disadv /save.
+*Creates Zfamincomecat, Zpareduc_avg, Zparentemploy.
+execute.
+
+*******************************************************************************
+*******************************************************************************
+*******************************************************************************
+
+*****************************PUBLIC ASSISTANCE RECEIPT - 5-ITEM INDEX.
+*Q: Last month, did you or any member of your household receive: (PA57A-F).
+*Items: A=Social Security, B=SSI, C=AFDC/welfare, D=food stamps, E=unemployment comp, F=housing subsidy.
+*Following Wickrama & Bryant (2003): sum of 5 forms of assistance (0-5 scale).
+*Note: Using PA57A (Social Security), PA57B (SSI), PA57C (AFDC), PA57D (food stamps), PA57F (housing).
+***check frequencies for zeros.
+frequencies variables = PA57A PA57B PA57C PA57D PA57F /statistics = all.
+*answer codes each item: 0 = no, 1 = yes, 6 = refused, missing.
+
+if (PA57A eq 1) pubassist_ss = 1.
+if (PA57A eq 0) pubassist_ss = 0.
+if (PA57A eq 6) pubassist_ss = -99.
+recode pubassist_ss (-99 = sysmis).
+variable labels pubassist_ss "Receives Social Security (PA57A, 1=yes)".
+value labels pubassist_ss 0 "no" 1 "yes".
+execute.
+
+if (PA57B eq 1) pubassist_ssi = 1.
+if (PA57B eq 0) pubassist_ssi = 0.
+if (PA57B eq 6) pubassist_ssi = -99.
+recode pubassist_ssi (-99 = sysmis).
+variable labels pubassist_ssi "Receives Supplemental Security Income (PA57B, 1=yes)".
+value labels pubassist_ssi 0 "no" 1 "yes".
+execute.
+
+if (PA57C eq 1) pubassist_afdc = 1.
+if (PA57C eq 0) pubassist_afdc = 0.
+if (PA57C eq 6) pubassist_afdc = -99.
+recode pubassist_afdc (-99 = sysmis).
+variable labels pubassist_afdc "Receives AFDC/welfare (PA57C, 1=yes)".
+value labels pubassist_afdc 0 "no" 1 "yes".
+execute.
+
+if (PA57D eq 1) pubassist_food = 1.
+if (PA57D eq 0) pubassist_food = 0.
+if (PA57D eq 6) pubassist_food = -99.
+recode pubassist_food (-99 = sysmis).
+variable labels pubassist_food "Receives food stamps (PA57D, 1=yes)".
+value labels pubassist_food 0 "no" 1 "yes".
+execute.
+
+if (PA57F eq 1) pubassist_hous = 1.
+if (PA57F eq 0) pubassist_hous = 0.
+if (PA57F eq 6) pubassist_hous = -99.
+recode pubassist_hous (-99 = sysmis).
+variable labels pubassist_hous "Receives housing subsidy (PA57F, 1=yes)".
+value labels pubassist_hous 0 "no" 1 "yes".
+execute.
+
+frequencies variables = pubassist_ss pubassist_ssi pubassist_afdc pubassist_food pubassist_hous /statistics = all.
+
+*****************************FAMILY ECONOMIC HARDSHIP INDEX (Wickrama & Bryant 2003).
+*5 forms of public assistance: pubassist_ss, pubassist_ssi, pubassist_afdc, pubassist_food, pubassist_hous.
+*Sum 0-5; higher = more assistance = more hardship (alpha ~.57 in original).
+
+compute econhardship = sum(pubassist_ss, pubassist_ssi, pubassist_afdc, pubassist_food, pubassist_hous).
+variable labels econhardship
+    "Family economic hardship: public assistance forms received (sum 0-5, higher = more hardship)".
+execute.
+
+frequencies variables = econhardship /statistics = all.
+
+*standardize based on weight filtered dataset.
+delete variables  Zeconhardship.
+    *delete variable if previously standardized with whole sample. 
+temporary.
+    *temporary can't be used with delete.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = econhardship /save.
+execute.
+*******************************************************************************
+    
+
+******************************************************************************STRUCTURAL DISADVANTAGE - NEIGHBORHOOD LEVEL *****************************************************************************************
+
+*****************************NEIGHBORHOOD DRUG PROBLEM.
+*Q: In this neighborhood, how big a problem are drug dealers and drug users? (PA34).
+***check frequencies for zeros.
+frequencies variables = PA34 /statistics = all.
+*answer codes: 1=no problem, 2=small problem, 3=big problem, 6=refused.
+
+if (PA34 ge 1 and PA34 le 3) nbhddrug = PA34.
+if (PA34 eq 6) nbhddrug = -99.
+recode nbhddrug (-99 = sysmis).
+variable labels nbhddrug "Neighborhood drug problem (PA34, 1=no problem to 3=big problem)".
+value labels nbhddrug 1 "no problem" 2 "small problem" 3 "big problem".
+execute.
+
+frequencies variables = nbhddrug /statistics = all.
+*******************************************************************************
+
+*****************************NEIGHBORHOOD PHYSICAL DISORDER.
+*Q: How big a problem are trash and litter on streets and sidewalks? (PA33).
+***check frequencies for zeros.
+frequencies variables = PA33 /statistics = all.
+*answer codes: 1=no problem, 2=small problem, 3=big problem, 6=refused.
+
+if (PA33 ge 1 and PA33 le 3) nbhddisorder = PA33.
+if (PA33 eq 6) nbhddisorder = -99.
+recode nbhddisorder (-99 = sysmis).
+variable labels nbhddisorder "Neighborhood physical disorder (PA33, 1=no problem to 3=big problem)".
+value labels nbhddisorder 1 "no problem" 2 "small problem" 3 "big problem".
+execute.
+
+frequencies variables = nbhddisorder /statistics = all.
+*******************************************************************************
+
+*****************************DESIRE TO LEAVE NEIGHBORHOOD.
+*Q: How much would you like to move away from this neighborhood? (PA35).
+***check frequencies for zeros.
+frequencies variables = PA35 /statistics = all.
+*answer codes: 1=not at all, 2=some, 3=very much, 6=refused.
+
+if (PA35 ge 1 and PA35 le 3) wantmove = PA35.
+if (PA35 eq 6) wantmove = -99.
+recode wantmove (-99 = sysmis).
+variable labels wantmove "Desire to move from neighborhood (PA35, 1=not at all to 3=very much)".
+value labels wantmove 1 "not at all" 2 "some" 3 "very much".
+execute.
+
+frequencies variables = wantmove /statistics = all.
+*******************************************************************************
+
+*****************************NEIGHBORHOOD SUBJECTIVE DISADVANTAGE INDEX (Metzger et al. 2015).
+*Components: nbhddrug (1-3), nbhddisorder (1-3), wantmove (1-3).
+*All in disadvantage direction (higher = worse neighborhood).
+
+compute nbhd_subj_disadv = mean(nbhddrug, nbhddisorder, wantmove).
+variable labels nbhd_subj_disadv
+    "Subjective neighborhood disadvantage index (mean of z-scored drug, disorder, desire to move)".
+execute.
+
+frequencies variables = nbhd_subj_disadv /statistics = all /histogram.
+
+*standardize based on weight filtered dataset.
+delete variables  Znbhd_subj_disadv.
+    *delete variable if previously standardized with whole sample. 
+temporary.
+    *temporary can't be used with delete.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = nbhd_subj_disadv /save.
+execute.
+*******************************************************************************
+
+*****************************CENSUS BLOCK-GROUP MEDIAN HOUSEHOLD.
+*Q: Median household income in for respondent's block group (contextual variable).
+***check frequencies for zeros.
+frequencies variables = BST90P15 /statistics = all.
+*answer codes: 4999 to 100001 = continuous dollar values (rounded to nearest thousand),
+*              999998 = unstable estimates,
+*              999999 = geocode missing.
+
+*Creating 9-category income variable (from context codebook appendix) from continuous BST90P15, then reverse-coding so
+*higher values = lower neighborhood income (greater structural disadvantage).
+*Categories follow original Add Health contextual codebook income groupings.
+if(BST90P15 ge 4999 and BST90P15 lt 5000) nbhd_inc = 9.   
+if(BST90P15 ge 5000 and BST90P15 lt 10000) nbhd_inc = 8.    
+if(BST90P15 ge 10000 and BST90P15 lt 15000) nbhd_inc = 7.   
+if(BST90P15 ge 15000 and BST90P15 lt 25000) nbhd_inc = 6.   
+if(BST90P15 ge 25000 and BST90P15 lt 35000) nbhd_inc = 5. 
+if(BST90P15 ge 35000 and BST90P15 lt 50000) nbhd_inc = 4.    
+if(BST90P15 ge 50000 and BST90P15 lt 75000) nbhd_inc = 3. 
+if(BST90P15 ge 75000 and BST90P15 lt 100000) nbhd_inc = 2.   
+if(BST90P15 ge 100000 and BST90P15 le 100001) nbhd_inc = 1.  
+if(BST90P15 eq 999998 or BST90P15 eq 999999) nbhd_inc = -99.
+recode nbhd_inc (-99 = sysmis).
+variable labels nbhd_inc
+    "Neighborhood median HH income category (BST90P15, reverse-coded, higher = lower income/more disadvantage)".
+value labels nbhd_inc
+    1 "$100,000 or more (lowest disadvantage)"
+    2 "$75,000 to $99,999"
+    3 "$50,000 to $74,999"
+    4 "$35,000 to $49,999"
+    5 "$25,000 to $34,999"
+    6 "$15,000 to $24,999"
+    7 "$10,000 to $14,999"
+    8 "$5,000 to $9,999"
+    9 "Less than $5,000 (highest disadvantage)".
+execute.
+
+*check frequencies of new variable.
+frequencies variables = nbhd_inc /statistics = all.
+
+*Collapsing nbhd_inc (9-category) into 3-category variable.
+*1 = high income (least disadvantage).
+*2 = middle income: original cats 4-6.
+*3 = low income (most disadvantage): original cats 7-9.
+if(nbhd_inc ge 1 and nbhd_inc le 3) nbhd_inc3 = 1.   
+if(nbhd_inc ge 4 and nbhd_inc le 6) nbhd_inc3 = 2.  
+if(nbhd_inc ge 7 and nbhd_inc le 9) nbhd_inc3 = 3.   
+recode nbhd_inc3 (sysmis = sysmis).
+variable labels nbhd_inc3
+    "Neighborhood median HH income, 3-cat (nbhd_inc, higher = lower income/more disadvantage)".
+value labels nbhd_inc3
+    1 "High income: 50K or more (least disadvantage)"
+    2 "Middle income: 15K to 49,999"
+    3 "Low income: less than 15K (most disadvantage)".
+execute.
+
+*check frequencies of new variable.
+frequencies variables = nbhd_inc3 /statistics = all.
+
+*****************************CENSUS BLOCK-GROUP UNEMPLOYMENT RATE.
+*BST90P23: Unemployment rate.
+***check frequencies for zeros.
+frequencies variables = BST90P23 /statistics = all.
+
+if (BST90P23 ge 0 and BST90P23 le 3) cens_unemploy = BST90P23.
+recode cens_unemploy (sysmis = sysmis).
+variable labels cens_unemploy
+    "Census block-group unemployment rate (BST90P23, higher = more unemployment, neighborhood disadvantage)".
+value labels cens_unemploy 
+    1 "low: < 6.5%"
+    2 "medium: 6.5-10.9%"
+    3 "high: > 10.9%".
+execute.
+
+frequencies variables = cens_unemploy /statistics = all.
+
+*****************************CENSUS BLOCK-GROUP POVERTY RATE.
+*BST90P19: Proportion of persons with income below poverty level in 1989. 
+***check frequencies for zeros.
+frequencies variables = BST90P19 /statistics = all.
+
+if (BST90P19 ge 0 and BST90P19 le 3) cens_poverty = BST90P19.
+recode cens_poverty (sysmis = sysmis).
+variable labels cens_poverty
+    "Census block-group poverty rate (BST90P19, higher = more poverty, neighborhood disadvantage)".
+value labels cens_poverty 
+    1 "low: < 11.6%"
+    2 "medium:11.6-23.9%"
+    3 "high: > 23.9".
+execute.
+
+frequencies variables = cens_poverty /statistics = all.
+
+*****************************CENSUS BLOCK-GROUP EDUCATION.
+*BST90P20: Modal educational attainment of individuals aged 25 years and over.
+***check frequencies for zeros.
+frequencies variables = BST90P20 /statistics = all.
+
+if (BST90P20 eq 1) cens_educ = 3.
+if (BST90P20 eq 2) cens_educ = 2.
+if (BST90P20 eq 3) cens_educ = 1.
+if (BST90P20 eq 8 or BST90P20 eq 9) cens_educ = -99.
+recode cens_educ (-99 = sysmis).
+variable labels cens_educ
+    "Census block-group educational attainment (BST90P20, higher = less education, neighborhood disadvantage)".
+value labels cens_educ 
+    1 " college degree or more"
+    2 "high school degree, no college degree"
+    3 "no high school degree".
+execute.
+
+frequencies variables = cens_educ /statistics = all.
+
+*****************************CENSUS BLOCK-GROUP MOBILITY RATE.
+*BST90P27: Proportion of occupied housing unites moved into.
+***check frequencies for zeros.
+frequencies variables = BST90P27 /statistics = all.
+
+if (BST90P27 ge 0 and BST90P27 le 3) cens_mobility = BST90P27.
+recode cens_mobility (sysmis = sysmis).
+variable labels cens_mobility
+    "Census block-group poverty rate (BST90P27, higher = more mobility, neighborhood disadvantage)".
+value labels cens_mobility 
+    1 "low: < 30.4%"
+    2 "medium: 30.4-65%"
+    3 "high: > 65%".
+execute.
+
+frequencies variables = cens_mobility /statistics = all.
+
+*****************************CENSUS NEIGHBORHOOD DISADVANTAGE INDEX  (Metzger et al. 2015).
+*Components: income, unemployment, poverty, residents 25+ education, mobility
+*orginigal variable is with continuous measures and Z-scored, use 3 level version of public items.
+*All in disadvantage direction (higher = worse neighborhood).
+
+compute cens_nbhd_disadv = mean(cens_poverty, cens_unemploy, cens_educ, nbhd_inc3, cens_mobility).
+variable labels cens_nbhd_disadv
+    "Census neighborhood disadvantage index: mean of poverty, unemployment, education, income, mobility ".
+execute.
+
+
+reliability variables =cens_poverty, cens_unemploy, cens_educ, nbhd_inc3, cens_mobility
+    /scale('commconnect') all /statistics = all.
+*alpha = 68.
+
+frequencies variables = cens_nbhd_disadv /statistics = all.
+
+*standardize based on weight filtered dataset.
+delete variables  Zcens_nbhd_disadv.
+    *delete variable if previously standardized with whole sample. 
+temporary.
+    *temporary can't be used with delete.
+select if (GSWGT3_2 ge 0). 
+descriptives variables = cens_nbhd_disadv /save.
+execute.
+*******************************************************************************

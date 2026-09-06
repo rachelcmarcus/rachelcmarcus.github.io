@@ -1,0 +1,1448 @@
+---
+title: Baseline Synchrony Calculation
+toc-depth: 3
+echo: true
+warning: false
+---
+
+```{r}
+
+#| label: packages
+
+library(here)
+library(nlme)
+library(tidyverse)
+library(ggplot2) 
+library(lavaan)
+library(semTools)
+library(jtools)
+library(haven)
+library(modsem)
+library(forecast)
+library(gt)
+```
+
+# Load Data
+
+Long-format positive- and negative-valence baseline warmth data, produced by the [Baseline Synchrony Processing](Baseline-Synchrony_Processing.qmd) pipeline, are read in from where that processed data already lives on disk (this page does not regenerate them). Import code is included but not rendered below.
+
+```{r}
+#| label: load data
+#| echo: false
+
+BL_WH_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data/BL_WH_Long.csv")
+BL_WH_Pos_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data/BL_WH_Pos_Long.csv")
+BL_WH_Neg_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data/BL_WH_Neg_Long.csv")
+
+```
+
+# Positive Interaction
+
+## Synchrony Calculation
+
+```{r}
+# Function to compute time-lagged cross-correlation synchrony between dyad members
+compute_blpwh_sync <- function(df, lag = 20, n_boot = 1000) {
+  
+  # Remove rows with missing data for both mom and partner variables
+  df <- df %>% filter(!is.na(blmpwh), !is.na(blfpwh))
+  
+  # Check if there's enough data to compute lagged correlations
+  if (nrow(df) < lag + 1) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # --- STEP 1: Pre-whitening via ARIMA to remove autocorrelation ---
+  # Fit ARIMA models to each person's time series to account for their individual temporal patterns
+  fit_mom <- tryCatch(auto.arima(df$blmpwh), error = function(e) NULL)
+  fit_partner <- tryCatch(auto.arima(df$blfpwh), error = function(e) NULL)
+  
+  # If either model fails, return NA results
+  if (is.null(fit_mom) || is.null(fit_partner)) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # Extract residuals (pre-whitened series) - these represent deviations from each person's own temporal pattern
+  res_mom <- residuals(fit_mom)
+  res_partner <- residuals(fit_partner)
+  
+  # Combine residuals and remove any remaining missing values
+  residuals_df <- tibble(res_mom, res_partner) %>% drop_na()
+  if (nrow(residuals_df) < lag + 1) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # --- STEP 2: Compute observed cross-correlation function (CCF) ---
+  # CCF examines how mom's behavior at time t correlates with partner's behavior at time t+lag
+  # Negative lags: mom leads partner; Positive lags: partner leads mom
+  ccf_result <- ccf(residuals_df$res_mom, residuals_df$res_partner, lag.max = lag, plot = FALSE)
+  observed_acf <- ccf_result$acf  # Cross-correlation values at each lag
+  lags <- ccf_result$lag           # Lag values (e.g., -20 to +20)
+  
+  # --- STEP 3: Bootstrap to establish confidence intervals ---
+  # Create matrix to store bootstrap results
+  boot_corrs <- matrix(NA, nrow = n_boot, ncol = length(lags))
+  n <- nrow(residuals_df)
+  
+  # Generate null distribution by randomly shuffling residuals (breaks temporal coupling)
+  for (i in 1:n_boot) {
+    x_boot <- sample(residuals_df$res_mom, n, replace = TRUE)      # Resample mom's residuals
+    y_boot <- sample(residuals_df$res_partner, n, replace = TRUE)  # Resample partner's residuals
+    boot_ccf <- ccf(x_boot, y_boot, lag.max = lag, plot = FALSE)   # Compute CCF on shuffled data
+    boot_corrs[i, ] <- boot_ccf$acf  # Store correlation values
+  }
+  
+  # Calculate 95% confidence intervals from bootstrap distribution
+  lower_ci <- apply(boot_corrs, 2, quantile, probs = 0.025, na.rm = TRUE)
+  upper_ci <- apply(boot_corrs, 2, quantile, probs = 0.975, na.rm = TRUE)
+  
+  # Determine significance: observed correlation falls outside 95% CI
+  significant <- (observed_acf < lower_ci) | (observed_acf > upper_ci)
+  
+  # Return tibble with lag values, correlations, CIs, and significance
+  tibble(
+    lag = as.numeric(lags),
+    acf = as.numeric(observed_acf),
+    lower_ci = lower_ci,
+    upper_ci = upper_ci,
+    significant = significant
+  )
+}
+
+library(purrr)
+
+# Nest data by couple ID (creates list-column with each dyad's time series)
+blpwh_sync_id <- BL_WH_Long %>%
+  group_by(ID) %>%
+  nest()
+
+# Apply the synchrony function to each couple's data
+blpwh_sync_id <- blpwh_sync_id %>%
+  mutate(blpwh_sync_ccf = map(data, compute_blpwh_sync))
+
+# Unnest results to get one row per couple per lag value
+blpwh_sync_results <- unnest(blpwh_sync_id, blpwh_sync_ccf)
+
+blpwh_sync_results$lag <- as.numeric(blpwh_sync_results$lag)
+```
+
+## Max Synchrony
+
+```{r}
+
+
+#blpwh_sync_results <- unnest(blpwh_sync_id, blpwh_sync_ccf)
+
+# Extract max synchrony for each couple
+blpwh_sync_max <- blpwh_sync_results %>%
+  group_by(ID) %>%
+  # Find the row with maximum absolute correlation for each couple
+  slice_max(abs(acf), n = 1, with_ties = FALSE) %>%
+  select(ID, 
+         max_lag = lag,           # Lag at which max occurs
+         max_sync = acf,          # Correlation value (with sign)
+         max_abs_sync = acf,      # Will convert to absolute
+         lower_ci, 
+         upper_ci, 
+         significant) %>%
+  mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
+  ungroup()
+
+# View results
+head(blpwh_sync_max)
+```
+
+
+### Max Synchrony Interpreation
+
+```{r}
+
+# Add interpretation columns
+blpwh_sync_max_interpret <- blpwh_sync_max %>%
+  mutate(
+    # Who leads?
+    leader = case_when(
+      max_lag > 0 ~ "Mom leads",
+      max_lag < 0 ~ "Partner leads",
+      max_lag == 0 ~ "Concurrent",
+      TRUE ~ NA_character_
+    ),
+    # How much lead time?
+    lead_time_seconds = abs(max_lag),
+    # Direction of relationship
+    relationship = case_when(
+      max_sync > 0 ~ "Positive (same direction)",
+      max_sync < 0 ~ "Negative (opposite direction)",
+      TRUE ~ NA_character_
+    ),
+    # Strength categorization (example thresholds)
+    strength = case_when(
+      max_abs_sync >= 0.5 ~ "Strong",
+      max_abs_sync >= 0.3 ~ "Moderate",
+      max_abs_sync >= 0.1 ~ "Weak",
+      TRUE ~ "Very weak"
+    )
+  )
+
+# View interpreted results
+blpwh_sync_max_interpret %>%
+  select(ID, max_sync, max_lag, leader, lead_time_seconds, 
+         relationship, strength, significant)
+```
+
+## Descriptives
+
+```{r}
+# Descriptive statistics across all couples
+blpwh_sync_max_interpret_summary <- blpwh_sync_max_interpret %>%
+  summarise(
+    n_couples = n(),
+    n_significant = sum(significant, na.rm = TRUE),
+    pct_significant = mean(significant, na.rm = TRUE) * 100,
+    
+    mean_max_sync = mean(max_abs_sync, na.rm = TRUE),
+    sd_max_sync = sd(max_abs_sync, na.rm = TRUE),
+    
+    mean_lag = mean(max_lag, na.rm = TRUE),
+    sd_lag = sd(max_lag, na.rm = TRUE),
+    
+    n_mom_leads = sum(max_lag > 0, na.rm = TRUE),
+    n_partner_leads = sum(max_lag < 0, na.rm = TRUE),
+    n_concurrent = sum(max_lag == 0, na.rm = TRUE),
+    
+    n_positive = sum(max_sync > 0, na.rm = TRUE),
+    n_negative = sum(max_sync < 0, na.rm = TRUE)
+  )
+
+print(blpwh_sync_max_interpret_summary)
+```
+
+
+## Plot Max Synchrony
+
+```{r}
+library(ggplot2)
+
+# Distribution of maximum synchrony values
+blpwh_hist_maxsync <- ggplot(blpwh_sync_max_interpret, aes(x = max_abs_sync, fill = significant)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  scale_fill_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  labs(title = "Distribution of Maximum Synchrony Across Couples",
+       x = "Maximum Absolute Correlation",
+       y = "Number of Couples",
+       fill = "Significant",
+       caption = "Histogram of each couple's maximum absolute time-lagged cross-correlation (positive interaction), colored by statistical significance.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blpwh_hist_maxsync
+ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_maxsync.png", plot = blpwh_hist_maxsync, width = 8, height = 6, dpi = 300)
+
+# Distribution of lags where max occurs
+blpwh_hist_lag <- ggplot(blpwh_sync_max_interpret, aes(x = max_lag, fill = leader)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  scale_fill_manual(values = c("Mom leads" = "#CC6677", "Partner leads" = "#88CCEE", "Concurrent" = "#009988"), name = "Leader") +
+  labs(title = "Lag at Maximum Synchrony",
+       x = "Lag (seconds)",
+       y = "Number of Couples",
+       fill = "Leader",
+       caption = "Histogram of the time lag (in seconds) at which each couple's maximum synchrony occurs, colored by which partner leads.") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blpwh_hist_lag
+ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_lag.png", plot = blpwh_hist_lag, width = 8, height = 6, dpi = 300)
+
+# Scatterplot: max correlation vs lag
+blpwh_scatter_sync <- ggplot(blpwh_sync_max_interpret,
+       aes(x = max_lag, y = max_sync, color = significant)) +
+  geom_point(size = 3, alpha = 0.6) +
+  scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(title = "Maximum Synchrony: Correlation vs Lag",
+       x = "Lag at Maximum (seconds)",
+       y = "Correlation Coefficient",
+       color = "Significant",
+       caption = "Each point is one couple's maximum correlation plotted against the lag at which it occurs, colored by statistical significance.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blpwh_scatter_sync
+ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_scatter_sync.png", plot = blpwh_scatter_sync, width = 8, height = 6, dpi = 300)
+```
+
+### Grid Panel
+
+```{r}
+# Show multiple couples in a grid
+blpwh_sync_ccfplot <- function(blpwh_sync_results, n_couples = 12) {
+  # Select first n couples
+  selected_ids <- unique(blpwh_sync_results$ID)[1:min(n_couples, length(unique(blpwh_sync_results$ID)))]
+
+  blpwh_sync_results %>%
+    filter(ID %in% selected_ids) %>%
+    ggplot(aes(x = lag, y = acf)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
+    geom_line(color = "#CC6677", size = 0.5) +
+    geom_point(aes(color = significant), size = 1) +
+    geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
+                alpha = 0.15, fill = "#CC6677") +
+    scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+    facet_wrap(~ ID, scales = "free_y", ncol = 3) +
+    labs(title = "Cross-Correlation Functions Across Couples",
+         x = "Lag (seconds)",
+         y = "Cross-Correlation",
+         color = "Significant",
+         caption = "Full cross-correlation function by lag for a sample of couples, with 95% confidence bands and significant lags highlighted.") +
+    theme_minimal(base_size = 16) +
+    theme(legend.position = "bottom",
+          strip.text = element_text(face = "bold", size = 14),
+          axis.title = element_text(size = 14), axis.text = element_text(size = 12),
+          panel.grid = element_blank())
+}
+
+# Display grid
+blpwh_sync_ccfplot_p <- blpwh_sync_ccfplot(blpwh_sync_results, n_couples = 3)
+blpwh_sync_ccfplot_p
+ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_sync_ccfplot.png", plot = blpwh_sync_ccfplot_p, width = 13, height = 5, dpi = 300)
+```
+
+
+## Calculate Average
+
+```{r}
+# Compute mean CCF profile across all couples
+blpwh_sync_avgccf <- blpwh_sync_results %>%
+  group_by(lag) %>%
+  summarise(
+    mean_acf = mean(acf, na.rm = TRUE),
+    se_acf = sd(acf, na.rm = TRUE) / sqrt(n()),
+    lower_se = mean_acf - 1.96 * se_acf,
+    upper_se = mean_acf + 1.96 * se_acf,
+    pct_significant = mean(significant, na.rm = TRUE) * 100,
+    .groups = "drop"
+  )
+
+
+```
+
+### Plot Average
+
+```{r}
+# Plot average CCF
+blpwh_sync_avgccf_plot <- ggplot(blpwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
+              alpha = 0.3, fill = "#CC6677") +
+  geom_line(color = "#CC6677", size = 1.2) +
+  geom_point(aes(size = pct_significant), color = "#CC6677") +
+  scale_size_continuous(range = c(1, 4), name = "% Couples\nSignificant") +
+  labs(title = "Average Cross-Correlation Function Across All Couples",
+       subtitle = "Shaded area represents 95% confidence interval",
+       x = "Lag (seconds)\n← Partner leads | Mom leads →",
+       y = "Mean Cross-Correlation",
+       caption = "Mean cross-correlation function across all couples, with point size showing the percentage of couples significant at that lag.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blpwh_sync_avgccf_plot
+ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_sync_avgccf_plot.png", plot = blpwh_sync_avgccf_plot, width = 8, height = 6, dpi = 300)
+```
+
+## Concurrent Synchrony
+
+```{r}
+# Extract concurrent (lag = 0)
+blpwh_sync_concurrent <- blpwh_sync_results %>%
+  filter(lag == 0) %>%
+  select(ID, concurrent_acf = acf, concurrent_sig = significant,
+         concurrent_lower = lower_ci, concurrent_upper = upper_ci)
+
+# Extract time-lagged (lag != 0)
+blpwh_sync_lagged <- blpwh_sync_results %>% filter(lag != 0)
+
+#max synchrony across non-zero lags
+blpwh_sync_lagmax <- blpwh_sync_lagged %>%
+  group_by(ID) %>%
+  # Find the row with maximum absolute correlation for each couple
+  slice_max(abs(acf), n = 1, with_ties = FALSE) %>%
+  select(ID, 
+         max_lag = lag,           # Lag at which max occurs
+         max_sync = acf,          # Correlation value (with sign)
+         max_abs_sync = acf,      # Will convert to absolute
+         lower_ci, 
+         upper_ci, 
+         significant) %>%
+  mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
+  ungroup()
+
+# View results
+knitr::kable(head(blpwh_sync_lagmax, 10), caption = "Maximum Time-Lagged Synchrony, Positive Interaction (first 10 couples)")
+```
+
+## Time-Lagged
+
+```{r}
+#| label: pos time lag to synchrony
+
+
+##uses first sig lag
+blpwh_sync_timetolag <- blpwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    has_significant = any(significant, na.rm = TRUE),
+    time_lag_to_sync = if (any(significant, na.rm = TRUE)) {
+      abs(lag[which(significant)[1]])
+    } else {
+      NA_integer_
+    },
+    .groups = "drop"
+  )
+```
+
+
+### Strongest Time-Lag
+
+```{r}
+
+#uses strongest sig lag
+blpwh_sync_summary <- blpwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    # Basic counts
+    n_significant_lags = sum(significant),
+    has_any_significant = any(significant),
+    
+    # If significant, what's the strongest?
+    strongest_lag = if(any(significant)) {
+      lag[which.max(abs(acf[significant]))]
+    } else NA_real_,
+    
+    strongest_acf = if(any(significant)) {
+      acf[significant][which.max(abs(acf[significant]))]
+    } else NA_real_,
+    
+    # Specific patterns
+    has_concurrent = any(significant & lag == 0),
+    has_mom_leads = any(significant & lag > 0),
+    has_partner_leads = any(significant & lag < 0),
+    
+    .groups = "drop"
+  )
+
+
+```
+
+## Summary Table - IDs
+
+```{r}
+library(gt)
+library(dplyr)
+
+# Create the formatted table
+blpwh_sync_summarytable <- blpwh_sync_summary %>%
+  # Select and order columns for display
+  select(ID, n_significant_lags, strongest_lag, strongest_acf,
+         has_concurrent, has_mom_leads, has_partner_leads) %>%
+  # Take first 20 couples for display (or use head(10) for fewer)
+  head(20) %>%
+  
+  # Create gt table
+  gt() %>%
+  
+  # Add title and subtitle
+  tab_header(
+    title = "Dyadic Synchrony Analysis",
+    subtitle = "Cross-Correlation Results by Couple"
+  ) %>%
+  
+  # Format numeric columns
+  fmt_number(
+    columns = c(strongest_acf),
+    decimals = 3
+  ) %>%
+  fmt_number(
+    columns = c(strongest_lag),
+    decimals = 0
+  ) %>%
+  
+  # Rename columns with readable labels
+  cols_label(
+    ID = "Couple ID",
+    n_significant_lags = "# Significant Lags",
+    strongest_lag = "Strongest Lag (sec)",
+    strongest_acf = "Correlation (r)",
+    has_concurrent = "Concurrent Sync",
+    has_mom_leads = "Mom Leads",
+    has_partner_leads = "Partner Leads"
+  ) %>%
+  
+  # Color code the boolean columns
+  data_color(
+    columns = c(has_concurrent, has_mom_leads, has_partner_leads),
+    colors = scales::col_factor(
+      palette = c("lightgray", "lightgreen"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  
+  # Color code correlation strength
+  data_color(
+    columns = strongest_acf,
+    colors = scales::col_numeric(
+      palette = c("white", "#CC6677", "#332288"),
+      domain = c(0, max(blpwh_sync_summary$strongest_acf, na.rm = TRUE))
+    )
+  ) %>%
+  
+  # Color code lag direction
+  data_color(
+    columns = strongest_lag,
+    colors = scales::col_numeric(
+      palette = c("#88CCEE", "white", "#CC6677"),
+      domain = c(
+        min(blpwh_sync_summary$strongest_lag, na.rm = TRUE),
+        max(blpwh_sync_summary$strongest_lag, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  
+  # Bold the column headers
+  tab_style(
+    style = list(
+      cell_text(weight = "bold", color = "white"),
+      cell_fill(color = "#CC6677")
+    ),
+    locations = cells_column_labels(everything())
+  ) %>%
+  
+  # Style the title
+  tab_style(
+    style = cell_text(weight = "bold", size = "large"),
+    locations = cells_title(groups = "title")
+  ) %>%
+  
+  # Add alternating row colors
+  tab_style(
+    style = cell_fill(color = "#F5F5F5"),
+    locations = cells_body(rows = seq(2, 20, 2))
+  ) %>%
+  
+  # Add footnotes
+  tab_footnote(
+    footnote = "Significant lags determined by bootstrap confidence intervals (α = .05)",
+    locations = cells_column_labels(columns = n_significant_lags)
+  ) %>%
+  tab_footnote(
+    footnote = "Positive lag = Mom leads; Negative lag = Partner leads; Zero = Concurrent",
+    locations = cells_column_labels(columns = strongest_lag)
+  ) %>%
+  
+  # Add source note
+  tab_source_note(
+    source_note = "Analysis based on pre-whitened ARIMA residuals with 1000 bootstrap iterations"
+  ) %>%
+  
+  # Table size
+  tab_options(
+    table.font.size = px(14),
+    column_labels.font.size = px(14),
+    heading.title.font.size = px(16),
+    heading.subtitle.font.size = px(13)
+  ) %>%
+
+  # Adjust column widths
+  cols_width(
+    ID ~ px(90),
+    n_significant_lags ~ px(130),
+    strongest_lag ~ px(140),
+    strongest_acf ~ px(120),
+    has_concurrent ~ px(120),
+    has_mom_leads ~ px(120),
+    has_partner_leads ~ px(140)
+  )
+
+# Display the table
+blpwh_sync_summarytable
+```
+
+## Summary Table - All
+
+```{r}
+# Create a summary statistics table instead of individual couples
+blpwh_sync_summarystats <- blpwh_sync_summary %>%
+  summarise(
+    n_couples = n(),
+    
+    # Synchrony prevalence
+    pct_any_significant = mean(has_any_significant, na.rm = TRUE) * 100,
+    pct_concurrent = mean(has_concurrent, na.rm = TRUE) * 100,
+    pct_mom_leads = mean(has_mom_leads, na.rm = TRUE) * 100,
+    pct_partner_leads = mean(has_partner_leads, na.rm = TRUE) * 100,
+    
+    # Lag characteristics
+    mean_n_sig_lags = mean(n_significant_lags, na.rm = TRUE),
+    median_strongest_lag = median(strongest_lag, na.rm = TRUE),
+    
+    # Correlation strength
+    mean_strongest_acf = mean(abs(strongest_acf), na.rm = TRUE),
+    median_strongest_acf = median(abs(strongest_acf), na.rm = TRUE)
+  ) %>%
+  
+  # Reshape for better display
+  tidyr::pivot_longer(
+    cols = everything(),
+    names_to = "Metric",
+    values_to = "Value"
+  ) %>%
+  
+  # Create gt table
+  gt() %>%
+  tab_header(
+    title = "Dyadic Synchrony: Summary Statistics",
+    subtitle = paste0("N = ", nrow(blpwh_sync_summary), " couples")
+  ) %>%
+  
+  # Format values
+  fmt_number(
+    columns = Value,
+    decimals = 2
+  ) %>%
+  
+  # Improve metric labels
+  text_transform(
+    locations = cells_body(columns = Metric),
+    fn = function(x) {
+      case_when(
+        x == "n_couples" ~ "Total Couples",
+        x == "pct_any_significant" ~ "% with Significant Synchrony",
+        x == "pct_concurrent" ~ "% with Concurrent Synchrony",
+        x == "pct_mom_leads" ~ "% with Mom Leading",
+        x == "pct_partner_leads" ~ "% with Partner Leading",
+        x == "mean_n_sig_lags" ~ "Mean # Significant Lags",
+        x == "median_strongest_lag" ~ "Median Strongest Lag (sec)",
+        x == "mean_strongest_acf" ~ "Mean Correlation Strength",
+        x == "median_strongest_acf" ~ "Median Correlation Strength",
+        TRUE ~ x
+      )
+    }
+  ) %>%
+  
+  # Style
+  tab_style(
+    style = list(
+      cell_text(weight = "bold", color = "white"),
+      cell_fill(color = "#CC6677")
+    ),
+    locations = cells_column_labels(everything())
+  ) %>%
+  
+  #tab_style(
+ #   style = cell_fill(color = "#F5F5F5"),
+ #   locations = cells_body(rows = seq(2, 10, 2))
+ # ) %>%
+  
+  cols_label(
+    Metric = "Statistic",
+    Value = "Value"
+  ) %>%
+  
+  tab_source_note(
+    source_note = "Pre-whitened cross-correlation with bootstrap significance testing"
+  )
+
+# Display
+blpwh_sync_summarystats
+```
+
+# Compare Approaches
+
+```{r}
+# Compare the three approaches side-by-side for a few couples
+blpwh_sync_compare <- blpwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    # Approach 1: First significant lag
+    first_sig_lag = if(any(significant)) abs(lag[which(significant)[1]]) else NA_real_,
+    
+    # Approach 2: Categorical
+    parent_led = any(significant & lag > 0),
+    infant_led = any(significant & lag < 0),
+    
+    # Approach 3: Strongest
+    strongest_lag = if(any(significant)) lag[which.max(abs(acf[significant]))] else NA_real_,
+    strongest_r = if(any(significant)) acf[significant][which.max(abs(acf[significant]))] else NA_real_,
+    
+    .groups = "drop"
+  ) %>%
+  head(10) %>%
+  
+  gt() %>%
+  tab_header(
+    title = "Comparison of Three Synchrony Approaches",
+    subtitle = "First 10 couples"
+  ) %>%
+  fmt_number(columns = c(first_sig_lag, strongest_lag), decimals = 0) %>%
+  fmt_number(columns = strongest_r, decimals = 3) %>%
+  cols_label(
+    ID = "Couple",
+    first_sig_lag = "First Sig Lag",
+    parent_led = "Parent Led",
+    infant_led = "Infant Led",
+    strongest_lag = "Strongest Lag",
+    strongest_r = "Strongest r"
+  ) %>%
+  tab_spanner(
+    label = "Approach 1: First",
+    columns = first_sig_lag
+  ) %>%
+  tab_spanner(
+    label = "Approach 2: Categorical",
+    columns = c(parent_led, infant_led)
+  ) %>%
+  tab_spanner(
+    label = "Approach 3: Strongest",
+    columns = c(strongest_lag, strongest_r)
+  ) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold", color = "white"),
+                 cell_fill(color = "#CC6677")),
+    locations = cells_column_labels(everything())
+  ) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold", color = "white"),
+                 cell_fill(color = "#332288")),
+    locations = cells_column_spanners(spanners = everything())
+  )
+
+blpwh_sync_compare
+```
+
+# Negative Interaction
+
+## Synchrony Calculation
+
+```{r}
+# Function to compute time-lagged cross-correlation synchrony between dyad members
+compute_blnwh_sync <- function(df, lag = 20, n_boot = 1000) {
+  
+  # Remove rows with missing data for both mom and partner variables
+  df <- df %>% filter(!is.na(blmnwh), !is.na(blfnwh))
+  
+  # Check if there's enough data to compute lagged correlations
+  if (nrow(df) < lag + 1) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # --- STEP 1: Pre-whitening via ARIMA to remove autocorrelation ---
+  # Fit ARIMA models to each person's time series to account for their individual temporal patterns
+  fit_mom <- tryCatch(auto.arima(df$blmnwh), error = function(e) NULL)
+  fit_partner <- tryCatch(auto.arima(df$blfnwh), error = function(e) NULL)
+  
+  # If either model fails, return NA results
+  if (is.null(fit_mom) || is.null(fit_partner)) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # Extract residuals (pre-whitened series) - these represent deviations from each person's own temporal pattern
+  res_mom <- residuals(fit_mom)
+  res_partner <- residuals(fit_partner)
+  
+  # Combine residuals and remove any remaining missing values
+  residuals_df <- tibble(res_mom, res_partner) %>% drop_na()
+  if (nrow(residuals_df) < lag + 1) return(tibble(lag = NA, acf = NA, lower_ci = NA, upper_ci = NA, significant = NA))
+  
+  # --- STEP 2: Compute observed cross-correlation function (CCF) ---
+  # CCF examines how mom's behavior at time t correlates with partner's behavior at time t+lag
+  # Negative lags: partner leads mom; Positive lags: mom leads partner
+  ccf_result <- ccf(residuals_df$res_mom, residuals_df$res_partner, lag.max = lag, plot = FALSE)
+  observed_acf <- ccf_result$acf  # Cross-correlation values at each lag
+  lags <- ccf_result$lag           # Lag values (e.g., -20 to +20)
+  
+  # --- STEP 3: Bootstrap to establish confidence intervals ---
+  # Create matrix to store bootstrap results
+  boot_corrs <- matrix(NA, nrow = n_boot, ncol = length(lags))
+  n <- nrow(residuals_df)
+  
+  # Generate null distribution by randomly shuffling residuals (breaks temporal coupling)
+  for (i in 1:n_boot) {
+    x_boot <- sample(residuals_df$res_mom, n, replace = TRUE)      # Resample mom's residuals
+    y_boot <- sample(residuals_df$res_partner, n, replace = TRUE)  # Resample partner's residuals
+    boot_ccf <- ccf(x_boot, y_boot, lag.max = lag, plot = FALSE)   # Compute CCF on shuffled data
+    boot_corrs[i, ] <- boot_ccf$acf  # Store correlation values
+  }
+  
+  # Calculate 95% confidence intervals from bootstrap distribution
+  lower_ci <- apply(boot_corrs, 2, quantile, probs = 0.025, na.rm = TRUE)
+  upper_ci <- apply(boot_corrs, 2, quantile, probs = 0.975, na.rm = TRUE)
+  
+  # Determine significance: observed correlation falls outside 95% CI
+  significant <- (observed_acf < lower_ci) | (observed_acf > upper_ci)
+  
+  # Return tibble with lag values, correlations, CIs, and significance
+  tibble(
+    lag = as.numeric(lags),
+    acf = as.numeric(observed_acf),
+    lower_ci = lower_ci,
+    upper_ci = upper_ci,
+    significant = significant
+  )
+}
+
+library(purrr)
+
+# Nest data by couple ID (creates list-column with each dyad's time series)
+blnwh_sync_id <- BL_WH_Long %>%
+  group_by(ID) %>%
+  nest()
+
+# Apply the synchrony function to each couple's data
+blnwh_sync_id <- blnwh_sync_id %>%
+  mutate(blnwh_sync_ccf = map(data, compute_blnwh_sync))
+
+# Unnest results to get one row per couple per lag value
+blnwh_sync_results <- unnest(blnwh_sync_id, blnwh_sync_ccf)
+
+blnwh_sync_results$lag <- as.numeric(blnwh_sync_results$lag)
+```
+
+## Max Synchrony
+
+```{r}
+
+
+#blnwh_sync_results <- unnest(blnwh_sync_id, blnwh_sync_ccf)
+
+# Extract max synchrony for each couple
+blnwh_sync_max <- blnwh_sync_results %>%
+  group_by(ID) %>%
+  # Find the row with maximum absolute correlation for each couple
+  slice_max(abs(acf), n = 1, with_ties = FALSE) %>%
+  select(ID, 
+         max_lag = lag,           # Lag at which max occurs
+         max_sync = acf,          # Correlation value (with sign)
+         max_abs_sync = acf,      # Will convert to absolute
+         lower_ci, 
+         upper_ci, 
+         significant) %>%
+  mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
+  ungroup()
+
+# View results
+head(blnwh_sync_max)
+```
+
+### Max Synchrony Interpretation
+
+```{r}
+
+# Add interpretation columns
+blnwh_sync_max_interpret <- blnwh_sync_max %>%
+  mutate(
+    # Who leads?
+    leader = case_when(
+      max_lag > 0 ~ "Mom leads",
+      max_lag < 0 ~ "Partner leads",
+      max_lag == 0 ~ "Concurrent",
+      TRUE ~ NA_character_
+    ),
+    #leader numerical
+    leaderN = case_when(
+      max_lag > 0 ~ "1" , #mom
+      max_lag < 0 ~ "2" , #partner
+      max_lag == 0 ~ "3", #concurrent
+      TRUE ~ NA_character_
+    ),
+    # How much lead time?
+    lead_time_seconds = abs(max_lag),
+    # Direction of relationship
+    relationship = case_when(
+      max_sync > 0 ~ "Positive (same direction)",
+      max_sync < 0 ~ "Negative (opposite direction)",
+      TRUE ~ NA_character_
+    ),
+    # Strength categorization (example thresholds)
+    strength = case_when(
+      max_abs_sync >= 0.5 ~ "Strong",
+      max_abs_sync >= 0.3 ~ "Moderate",
+      max_abs_sync >= 0.1 ~ "Weak",
+      TRUE ~ "Very weak"
+    )
+  )
+
+# View interpreted results
+blnwh_sync_max_interpret_preview <- blnwh_sync_max_interpret %>%
+  select(ID, max_sync, max_lag, leader, lead_time_seconds,
+         relationship, strength, significant)
+
+knitr::kable(head(blnwh_sync_max_interpret_preview, 10), caption = "Interpreted Maximum Synchrony, Negative Interaction (first 10 couples)")
+```
+
+## Descriptives
+
+```{r}
+# Descriptive statistics across all couples
+blnwh_sync_max_interpret_summary <- blnwh_sync_max_interpret %>%
+  summarise(
+    n_couples = n(),
+    n_significant = sum(significant, na.rm = TRUE),
+    pct_significant = mean(significant, na.rm = TRUE) * 100,
+    
+    mean_max_sync = mean(max_abs_sync, na.rm = TRUE),
+    sd_max_sync = sd(max_abs_sync, na.rm = TRUE),
+    
+    mean_lag = mean(max_lag, na.rm = TRUE),
+    sd_lag = sd(max_lag, na.rm = TRUE),
+    
+    n_mom_leads = sum(max_lag > 0, na.rm = TRUE),
+    n_partner_leads = sum(max_lag < 0, na.rm = TRUE),
+    n_concurrent = sum(max_lag == 0, na.rm = TRUE),
+    
+    n_positive = sum(max_sync > 0, na.rm = TRUE),
+    n_negative = sum(max_sync < 0, na.rm = TRUE)
+  )
+
+print(blnwh_sync_max_interpret_summary)
+```
+
+## Plot Max Synchrony
+
+```{r}
+library(ggplot2)
+
+# Distribution of maximum synchrony values
+blnwh_hist_maxsync <- ggplot(blnwh_sync_max_interpret, aes(x = max_abs_sync, fill = significant)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  scale_fill_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  labs(title = "Distribution of Maximum Synchrony Across Couples",
+       x = "Maximum Absolute Correlation",
+       y = "Number of Couples",
+       fill = "Significant",
+       caption = "Histogram of each couple's maximum absolute time-lagged cross-correlation (negative interaction), colored by statistical significance.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blnwh_hist_maxsync
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_maxsync.png", plot = blnwh_hist_maxsync, width = 8, height = 6, dpi = 300)
+
+# Distribution of lags where max occurs
+blnwh_hist_lag <- ggplot(blnwh_sync_max_interpret, aes(x = max_lag, fill = leader)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  scale_fill_manual(values = c("Mom leads" = "#CC6677", "Partner leads" = "#88CCEE", "Concurrent" = "#009988"), name = "Leader") +
+  labs(title = "Lag at Maximum Synchrony",
+       x = "Lag (seconds)",
+       y = "Number of Couples",
+       fill = "Leader",
+       caption = "Histogram of the time lag (in seconds) at which each couple's maximum synchrony occurs, colored by which partner leads.") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blnwh_hist_lag
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_lag.png", plot = blnwh_hist_lag, width = 8, height = 6, dpi = 300)
+
+# Scatterplot: max correlation vs lag
+blnwh_scatter_sync <- ggplot(blnwh_sync_max_interpret,
+       aes(x = max_lag, y = max_sync, color = significant)) +
+  geom_point(size = 3, alpha = 0.6) +
+  scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(title = "Maximum Synchrony: Correlation vs Lag",
+       x = "Lag at Maximum (seconds)",
+       y = "Correlation Coefficient",
+       color = "Significant",
+       caption = "Each point is one couple's maximum correlation plotted against the lag at which it occurs, colored by statistical significance.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blnwh_scatter_sync
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_scatter_sync.png", plot = blnwh_scatter_sync, width = 8, height = 6, dpi = 300)
+```
+
+
+### Grid Panel
+
+```{r}
+# Show multiple couples in a grid
+blnwh_sync_ccfplot <- function(blnwh_sync_results, n_couples = 12) {
+  # Select first n couples
+  selected_ids <- unique(blnwh_sync_results$ID)[1:min(n_couples, length(unique(blnwh_sync_results$ID)))]
+
+  blnwh_sync_results %>%
+    filter(ID %in% selected_ids) %>%
+    ggplot(aes(x = lag, y = acf)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
+    geom_line(color = "#CC6677", size = 0.5) +
+    geom_point(aes(color = significant), size = 1) +
+    geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
+                alpha = 0.15, fill = "#CC6677") +
+    scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+    facet_wrap(~ ID, scales = "free_y", ncol = 3) +
+    labs(title = "Cross-Correlation Functions Across Couples",
+         x = "Lag (seconds)",
+         y = "Cross-Correlation",
+         color = "Significant",
+         caption = "Full cross-correlation function by lag for a sample of couples, with 95% confidence bands and significant lags highlighted.") +
+    theme_minimal(base_size = 16) +
+    theme(legend.position = "bottom",
+          strip.text = element_text(face = "bold", size = 14),
+          axis.title = element_text(size = 14), axis.text = element_text(size = 12),
+          panel.grid = element_blank())
+}
+
+# Display grid
+blnwh_sync_ccfplot_p <- blnwh_sync_ccfplot(blnwh_sync_results, n_couples = 3)
+blnwh_sync_ccfplot_p
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_ccfplot.png", plot = blnwh_sync_ccfplot_p, width = 13, height = 5, dpi = 300)
+```
+
+## Calculate Average
+
+```{r}
+# Compute mean CCF profile across all couples
+blnwh_sync_avgccf <- blnwh_sync_results %>%
+  group_by(lag) %>%
+  summarise(
+    mean_acf = mean(acf, na.rm = TRUE),
+    se_acf = sd(acf, na.rm = TRUE) / sqrt(n()),
+    lower_se = mean_acf - 1.96 * se_acf,
+    upper_se = mean_acf + 1.96 * se_acf,
+    pct_significant = mean(significant, na.rm = TRUE) * 100,
+    .groups = "drop"
+  )
+
+# Plot average CCF
+blnwh_sync_avgccf_plot <- ggplot(blnwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
+              alpha = 0.3, fill = "#CC6677") +
+  geom_line(color = "#CC6677", size = 1.2) +
+  geom_point(aes(size = pct_significant), color = "#CC6677") +
+  scale_size_continuous(range = c(1, 4), name = "% Couples\nSignificant") +
+  labs(title = "Average Cross-Correlation Function Across All Couples",
+       subtitle = "Shaded area represents 95% confidence interval",
+       x = "Lag (seconds)\n← Partner leads | Mom leads →",
+       y = "Mean Cross-Correlation",
+       caption = "Mean cross-correlation function across all couples, with point size showing the percentage of couples significant at that lag.") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 14),
+        panel.grid = element_blank())
+blnwh_sync_avgccf_plot
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_avgccf_plot.png", plot = blnwh_sync_avgccf_plot, width = 8, height = 6, dpi = 300)
+```
+
+### Plot Average
+
+```{r}
+# Heatmap showing all couples' CCF profiles. Couples are identified only by
+# their row order (not their real ID) so no participant identifiers appear
+# on the public site, and the y-axis is left unlabeled for the same reason.
+blnwh_sync_heatmap <- function(blnwh_sync_results, n_couples = 50) {
+  selected_ids <- unique(blnwh_sync_results$ID)[1:min(n_couples, length(unique(blnwh_sync_results$ID)))]
+
+  blnwh_sync_results %>%
+    filter(ID %in% selected_ids) %>%
+    mutate(couple_row = factor(match(ID, selected_ids))) %>%
+    ggplot(aes(x = lag, y = couple_row, fill = acf)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "#88CCEE", mid = "white", high = "#CC6677",
+                         midpoint = 0, limits = c(-1, 1),
+                         name = "Correlation") +
+    labs(title = "Cross-Correlation Heatmap: Random Assortment of Couples in the Study",
+         x = "Lag (seconds)",
+         y = NULL,
+         caption = "Correlation at every lag for a random assortment of couples in the study; couples are not individually identified. Red indicates positive correlation, blue negative, centered at zero.") +
+    theme_minimal(base_size = 16) +
+    theme(legend.position = "bottom", axis.title = element_text(size = 14),
+          axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size = 12),
+          panel.grid = element_blank())
+}
+
+blnwh_sync_heatmap_p <- blnwh_sync_heatmap(blnwh_sync_results, n_couples = 30)
+blnwh_sync_heatmap_p
+ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_heatmap.png", plot = blnwh_sync_heatmap_p, width = 10, height = 10, dpi = 300)
+```
+
+## Concurrent Synchrony
+
+```{r}
+# Extract concurrent (lag = 0)
+blnwh_sync_concurrent <- blnwh_sync_results %>%
+  filter(lag == 0) %>%
+  select(ID, concurrent_acf = acf, concurrent_sig = significant,
+         concurrent_lower = lower_ci, concurrent_upper = upper_ci)
+
+knitr::kable(head(blnwh_sync_concurrent, 10), caption = "Concurrent Synchrony, Negative Interaction (first 10 couples)")
+```
+
+## Time Lagged Synchrony
+
+```{r}
+
+# Extract time-lagged (lag != 0)
+blnwh_sync_lagged <- blnwh_sync_results %>% filter(lag != 0)
+
+#max synchrony across non-zero lags
+blnwh_sync_lagmax <- blnwh_sync_lagged %>%
+  group_by(ID) %>%
+  # Find the row with maximum absolute correlation for each couple
+  slice_max(abs(acf), n = 1, with_ties = FALSE) %>%
+  select(ID, 
+         max_lag = lag,           # Lag at which max occurs
+         max_sync = acf,          # Correlation value (with sign)
+         max_abs_sync = acf,      # Will convert to absolute
+         lower_ci, 
+         upper_ci, 
+         significant) %>%
+  mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
+  ungroup()
+
+# View results
+knitr::kable(head(blnwh_sync_lagmax, 10), caption = "Maximum Time-Lagged Synchrony, Negative Interaction (first 10 couples)")
+```
+
+
+```{r}
+#| label: neg time lag to synchrony
+
+
+##uses first sig lag
+blnwh_sync_timetolag <- blnwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    has_significant = any(significant, na.rm = TRUE),
+    time_lag_to_sync = if (any(significant, na.rm = TRUE)) {
+      abs(lag[which(significant)[1]])
+    } else {
+      NA_integer_
+    },
+    .groups = "drop"
+  )
+```
+
+## Summary Table - ID
+
+```{r}
+
+#uses strongest sig lag
+blnwh_sync_summary <- blnwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    # Basic counts
+    n_significant_lags = sum(significant),
+    has_any_significant = any(significant),
+    
+    # If significant, what's the strongest?
+    strongest_lag = if(any(significant)) {
+      lag[which.max(abs(acf[significant]))]
+    } else NA_real_,
+    
+    strongest_acf = if(any(significant)) {
+      acf[significant][which.max(abs(acf[significant]))]
+    } else NA_real_,
+    
+    # Specific patterns
+    has_concurrent = any(significant & lag == 0),
+    has_mom_leads = any(significant & lag > 0),
+    has_partner_leads = any(significant & lag < 0),
+    
+    .groups = "drop"
+  )
+
+
+```
+
+## Summary Table - All
+
+```{r}
+library(gt)
+library(dplyr)
+
+# Create the formatted table
+blnwh_sync_summarytable <- blnwh_sync_summary %>%
+  # Select and order columns for display
+  select(ID, n_significant_lags, strongest_lag, strongest_acf,
+         has_concurrent, has_mom_leads, has_partner_leads) %>%
+  # Take first 20 couples for display (or use head(10) for fewer)
+  head(20) %>%
+  
+  # Create gt table
+  gt() %>%
+  
+  # Add title and subtitle
+  tab_header(
+    title = "Dyadic Synchrony Analysis",
+    subtitle = "Cross-Correlation Results by Couple"
+  ) %>%
+  
+  # Format numeric columns
+  fmt_number(
+    columns = c(strongest_acf),
+    decimals = 3
+  ) %>%
+  fmt_number(
+    columns = c(strongest_lag),
+    decimals = 0
+  ) %>%
+  
+  # Rename columns with readable labels
+  cols_label(
+    ID = "Couple ID",
+    n_significant_lags = "# Significant Lags",
+    strongest_lag = "Strongest Lag (sec)",
+    strongest_acf = "Correlation (r)",
+    has_concurrent = "Concurrent Sync",
+    has_mom_leads = "Mom Leads",
+    has_partner_leads = "Partner Leads"
+  ) %>%
+  
+  # Color code the boolean columns
+  data_color(
+    columns = c(has_concurrent, has_mom_leads, has_partner_leads),
+    colors = scales::col_factor(
+      palette = c("lightgray", "lightgreen"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  
+  # Color code correlation strength
+  data_color(
+    columns = strongest_acf,
+    colors = scales::col_numeric(
+      palette = c("white", "#CC6677", "#332288"),
+      domain = c(0, max(blnwh_sync_summary$strongest_acf, na.rm = TRUE))
+    )
+  ) %>%
+  
+  # Color code lag direction
+  data_color(
+    columns = strongest_lag,
+    colors = scales::col_numeric(
+      palette = c("#88CCEE", "white", "#CC6677"),
+      domain = c(
+        min(blnwh_sync_summary$strongest_lag, na.rm = TRUE),
+        max(blnwh_sync_summary$strongest_lag, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  
+  # Bold the column headers
+  tab_style(
+    style = list(
+      cell_text(weight = "bold", color = "white"),
+      cell_fill(color = "#CC6677")
+    ),
+    locations = cells_column_labels(everything())
+  ) %>%
+  
+  # Style the title
+  tab_style(
+    style = cell_text(weight = "bold", size = "large"),
+    locations = cells_title(groups = "title")
+  ) %>%
+  
+  # Add alternating row colors
+  tab_style(
+    style = cell_fill(color = "#F5F5F5"),
+    locations = cells_body(rows = seq(2, 20, 2))
+  ) %>%
+  
+  # Add footnotes
+  tab_footnote(
+    footnote = "Significant lags determined by bootstrap confidence intervals (α = .05)",
+    locations = cells_column_labels(columns = n_significant_lags)
+  ) %>%
+  tab_footnote(
+    footnote = "Positive lag = Mom leads; Negative lag = Partner leads; Zero = Concurrent",
+    locations = cells_column_labels(columns = strongest_lag)
+  ) %>%
+  
+  # Add source note
+  tab_source_note(
+    source_note = "Analysis based on pre-whitened ARIMA residuals with 1000 bootstrap iterations"
+  ) %>%
+  
+  # Table size
+  tab_options(
+    table.font.size = px(14),
+    column_labels.font.size = px(14),
+    heading.title.font.size = px(16),
+    heading.subtitle.font.size = px(13)
+  ) %>%
+
+  # Adjust column widths
+  cols_width(
+    ID ~ px(90),
+    n_significant_lags ~ px(130),
+    strongest_lag ~ px(140),
+    strongest_acf ~ px(120),
+    has_concurrent ~ px(120),
+    has_mom_leads ~ px(120),
+    has_partner_leads ~ px(140)
+  )
+
+# Display the table
+blnwh_sync_summarytable
+```
+
+```{r}
+# Create a summary statistics table instead of individual couples
+blnwh_sync_summarystats <- blnwh_sync_summary %>%
+  summarise(
+    n_couples = n(),
+    
+    # Synchrony prevalence
+    pct_any_significant = mean(has_any_significant, na.rm = TRUE) * 100,
+    pct_concurrent = mean(has_concurrent, na.rm = TRUE) * 100,
+    pct_mom_leads = mean(has_mom_leads, na.rm = TRUE) * 100,
+    pct_partner_leads = mean(has_partner_leads, na.rm = TRUE) * 100,
+    
+    # Lag characteristics
+    mean_n_sig_lags = mean(n_significant_lags, na.rm = TRUE),
+    median_strongest_lag = median(strongest_lag, na.rm = TRUE),
+    
+    # Correlation strength
+    mean_strongest_acf = mean(abs(strongest_acf), na.rm = TRUE),
+    median_strongest_acf = median(abs(strongest_acf), na.rm = TRUE)
+  ) %>%
+  
+  # Reshape for better display
+  tidyr::pivot_longer(
+    cols = everything(),
+    names_to = "Metric",
+    values_to = "Value"
+  ) %>%
+  
+  # Create gt table
+  gt() %>%
+  tab_header(
+    title = "Dyadic Synchrony: Summary Statistics",
+    subtitle = paste0("N = ", nrow(blnwh_sync_summary), " couples")
+  ) %>%
+  
+  # Format values
+  fmt_number(
+    columns = Value,
+    decimals = 2
+  ) %>%
+  
+  # Improve metric labels
+  text_transform(
+    locations = cells_body(columns = Metric),
+    fn = function(x) {
+      case_when(
+        x == "n_couples" ~ "Total Couples",
+        x == "pct_any_significant" ~ "% with Significant Synchrony",
+        x == "pct_concurrent" ~ "% with Concurrent Synchrony",
+        x == "pct_mom_leads" ~ "% with Mom Leading",
+        x == "pct_partner_leads" ~ "% with Partner Leading",
+        x == "mean_n_sig_lags" ~ "Mean # Significant Lags",
+        x == "median_strongest_lag" ~ "Median Strongest Lag (sec)",
+        x == "mean_strongest_acf" ~ "Mean Correlation Strength",
+        x == "median_strongest_acf" ~ "Median Correlation Strength",
+        TRUE ~ x
+      )
+    }
+  ) %>%
+  
+  # Style
+  tab_style(
+    style = list(
+      cell_text(weight = "bold", color = "white"),
+      cell_fill(color = "#CC6677")
+    ),
+    locations = cells_column_labels(everything())
+  ) %>%
+  
+  #tab_style(
+ #   style = cell_fill(color = "#F5F5F5"),
+ #   locations = cells_body(rows = seq(2, 10, 2))
+ # ) %>%
+  
+  cols_label(
+    Metric = "Statistic",
+    Value = "Value"
+  ) %>%
+  
+  tab_source_note(
+    source_note = "Pre-whitened cross-correlation with bootstrap significance testing"
+  )
+
+# Display
+blnwh_sync_summarystats
+```
+
+```{r}
+# Compare the three approaches side-by-side for a few couples
+blnwh_sync_compare <- blnwh_sync_results %>%
+  mutate(significant = as.vector(significant)) %>%
+  filter(!is.na(significant)) %>%
+  group_by(ID) %>%
+  summarise(
+    # Approach 1: First significant lag
+    first_sig_lag = if(any(significant)) abs(lag[which(significant)[1]]) else NA_real_,
+    
+    # Approach 2: Categorical
+    parent_led = any(significant & lag > 0),
+    infant_led = any(significant & lag < 0),
+    
+    # Approach 3: Strongest
+    strongest_lag = if(any(significant)) lag[which.max(abs(acf[significant]))] else NA_real_,
+    strongest_r = if(any(significant)) acf[significant][which.max(abs(acf[significant]))] else NA_real_,
+    
+    .groups = "drop"
+  ) %>%
+  head(10) %>%
+  
+  gt() %>%
+  tab_header(
+    title = "Comparison of Three Synchrony Approaches",
+    subtitle = "First 10 couples"
+  ) %>%
+  fmt_number(columns = c(first_sig_lag, strongest_lag), decimals = 0) %>%
+  fmt_number(columns = strongest_r, decimals = 3) %>%
+  cols_label(
+    ID = "Couple",
+    first_sig_lag = "First Sig Lag",
+    parent_led = "Parent Led",
+    infant_led = "Infant Led",
+    strongest_lag = "Strongest Lag",
+    strongest_r = "Strongest r"
+  ) %>%
+  tab_spanner(
+    label = "Approach 1: First",
+    columns = first_sig_lag
+  ) %>%
+  tab_spanner(
+    label = "Approach 2: Categorical",
+    columns = c(parent_led, infant_led)
+  ) %>%
+  tab_spanner(
+    label = "Approach 3: Strongest",
+    columns = c(strongest_lag, strongest_r)
+  ) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold", color = "white"),
+                 cell_fill(color = "#CC6677")),
+    locations = cells_column_labels(everything())
+  ) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold", color = "white"),
+                 cell_fill(color = "#332288")),
+    locations = cells_column_spanners(spanners = everything())
+  )
+
+blnwh_sync_compare
+```

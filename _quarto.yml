@@ -1,0 +1,88 @@
+project:
+  type: website
+  output-dir: docs
+  
+website:
+  title: "Rachel Marcus, Ph.D."
+  description: "Applied research and data science portfolio"
+  site-url: "https://rachelcmarcus.github.io"   
+  page-navigation: true
+  back-to-top-navigation: true
+  reader-mode: false
+  sidebar:
+    style: "docked"
+    background: light
+    search: true
+    contents:
+      - text: "Overview"
+        href: index.qmd
+      - section: "Projects"
+        contents:
+          - text: "SPR Cup Analysis"
+            href: projects/spr-cup/Analysis.qmd
+          - section: "Baseline Warmth & Synchrony"
+            contents:
+              - text: "Import & Reliability"
+                href: projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd
+              - text: "Processing"
+                href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Processing.qmd
+              - text: "Calculation"
+                href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Calculation.qmd
+          - section: "Still Face Processing"
+            contents:
+              - text: "Still Face Paradigm Data"
+                href: projects/still-face/variable-dictionary.qmd            
+              - text: "Still Face Import Pipeline (R)"
+                href: projects/still-face/6M_Still_Face_Raw_Import.qmd
+              - text: "Still Face Import Pipeline (Python)"
+                href: projects/still-face-python.qmd
+
+          - section: "Add Health: Profiles & Predictors"
+            contents:
+              - text: "Indicator Profiles"
+                href: projects/add-health/01_indicator_profiles.qmd
+              - text: "Indicator Profiles (Z-Score)"
+                href: projects/add-health/01a_indicator_profiles_zscore.qmd
+              - text: "Predictor Profiles"
+                href: projects/add-health/02_predictor_profiles.qmd
+              - text: "Odds Ratio Graphs"
+                href: projects/add-health/03_OR_graphs.qmd
+              - text: "OR Graphs (ASP Scales)"
+                href: projects/add-health/04_OR_graphs_asp_scales.qmd
+              - text: "Scales Profiles"
+                href: projects/add-health/05_scales_profiles.qmd
+              - text: "Interaction"
+                href: projects/add-health/06_interaction.qmd
+              - text: "OR Graphs (Line)"
+                href: projects/add-health/07_OR_graphsline.qmd
+              - text: "BCH Analysis"
+                href: projects/add-health/08_BCH.qmd
+  page-footer:
+    left: "© 2026 Rachel Marcus"
+    right:
+      - icon: github
+        href: "https://github.com/rachelcmarcus/rachelcmarcus.github.io"
+      - icon: linkedin
+        href: "https://www.linkedin.com/in/rachel-c-marcus/"
+
+format:
+  html:
+    theme:
+      light: cosmo
+    css: styles.css
+    toc: true
+    toc-location: right
+    toc-title: "On this page"
+    code-fold: show
+    code-tools: true
+    code-summary: "Show code"
+    embed-resources: true
+    smooth-scroll: true
+    linkcolor: "#2c3e50"
+    fontsize: 1.02em
+    fig-align: center
+    syntax-definitions:
+      - spss.xml
+
+execute:
+  freeze: auto   # only re-runs code when the source file changes, keeps rebuilds fast

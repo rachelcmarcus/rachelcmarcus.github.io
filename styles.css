@@ -1,0 +1,24 @@
+/* Minimal polish on top of the flatly theme */
+
+.sidebar-title {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+h1.title {
+  font-weight: 600;
+}
+
+.quarto-title-banner {
+  padding-top: 1.5em;
+  padding-bottom: 1.5em;
+}
+
+pre.sourceCode {
+  border-radius: 6px;
+  font-size: 0.88em;
+}
+
+.callout {
+  border-radius: 4px;
+}

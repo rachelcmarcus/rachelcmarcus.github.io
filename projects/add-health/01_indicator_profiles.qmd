@@ -1,0 +1,420 @@
+---
+title: "Indicator Profiles"
+code-fold: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+source("_setup.R")
+```
+
+# Data Import
+
+Indicator profile probabilities/means and paired-comparison significance tests across the latent class solution are read in from a local Excel results workbook from saved LatentGOLD results. Import code is included but not rendered below.
+
+```{r}
+#| label: import
+#| echo: false
+
+data_path <- "C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Rachel M & Rina/Dissertation/Analysis/Study 1/Study1_R/data/Tables.xlsx"
+
+profile_raw <- read_excel(data_path, sheet = "profile R")
+pairs_raw   <- read_excel(data_path, sheet = "paired comparisons")
+```
+
+# Wrangle Profile Data
+
+Binary indicators (probabilities, 0–1) and continuous indicators (means, 0–3) are plotted together on a shared primary axis. Continuous values are divided by `scale_factor` before plotting so they fit the 0–1 primary axis; the right-hand secondary axis reverses that transformation to show the true 0–3 scale. `scale_factor` is defined in one place — adjust if indicator ranges change.
+
+```{r}
+#| label: wrangle-profile
+
+# Legend labels with cluster size in parentheses
+cluster_sizes <- c("C1" = 35.6, "C2" = 33.7, "C3" = 15.8, "C4" = 14.9)
+
+cluster_labels <- c(
+  "C1"      = paste0("C1 (", cluster_sizes["C1"], "%)"),
+  "C2"      = paste0("C2 (", cluster_sizes["C2"], "%)"),
+  "C3"      = paste0("C3 (", cluster_sizes["C3"], "%)"),
+  "C4"      = paste0("C4 (", cluster_sizes["C4"], "%)")
+)
+
+# Fill colors — no outlines
+indicator_colors <- cluster_colors
+
+# Scale factor: right axis max / left axis max (continuous max ~3, binary max 1)
+# Continuous values are divided by this before plotting, then right axis
+# multiplies back to show true scale. Edit here if any continuous value > 3.
+scale_factor <- 3
+
+# Continuous indicators — values can exceed 1 and read off the right axis
+continuous_indicators <- c(
+  "Problems from alcohol",
+  "Sport Teams",
+  "Extracurriculars",
+  "Don't avoid problems"
+)
+
+# Negative panel: binary on left (0-1), continuous on right (0-3)
+#   → continuous values divided by scale_factor to fit primary axis
+# Positive panel: continuous on left (0-3), binary on right (0-1)
+#   → binary values multiplied by scale_factor to fit primary axis
+# This arrangement puts the 0-3 axes adjacent in the middle of the combined figure.
+
+neg_continuous <- c("Problems from alcohol")
+pos_continuous <- c("Sport Teams", "Extracurriculars", "Don't avoid problems")
+
+profile_long <- profile_raw %>%
+  pivot_longer(
+    cols      = c(Cluster1, Cluster2, Cluster3, Cluster4),
+    names_to  = "cluster_raw",
+    values_to = "value"
+  ) %>%
+  mutate(
+    cluster    = recode(cluster_raw,
+                   "Cluster1" = "C1", "Cluster2" = "C2",
+                   "Cluster3" = "C3", "Cluster4" = "C4"),
+    cluster    = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
+    Indicators = factor(Indicators, levels = unique(profile_raw$Indicators)),
+    # Rescale for plotting:
+    #   Negative: continuous / scale_factor (plots on 0-1 axis, reads off right 0-3)
+    #   Positive: binary * scale_factor     (plots on 0-3 axis, reads off right 0-1)
+    value_plot = case_when(
+      Risk == "Negative" & Indicators %in% neg_continuous ~ value / scale_factor,
+      Risk == "Positive" & !Indicators %in% pos_continuous ~ value * scale_factor,
+      TRUE ~ value
+    )
+  )
+```
+
+# BH Correction on Pairwise Comparisons
+
+Non-estimable rows (p = ".") and the Intercept block are dropped before correction is applied across all remaining tests simultaneously.
+
+```{r}
+#| label: bh-pairs
+pairs <- pairs_raw %>%
+  filter(Indicator != "Intercept", `p-value` != ".") %>%
+  mutate(
+    p_value   = as.numeric(`p-value`),
+    cluster_a = as.integer(clustera),
+    cluster_b = as.integer(clusterb),
+    pair      = paste0("C", cluster_a, " vs. C", cluster_b),
+    p_adj     = p.adjust(p_value, method = "BH"),
+    sig       = p_adj < .05
+  )
+```
+
+# Profile Figure
+
+@fig-indicator-profileneg: Negative Indicators 
+Left y-axis (0–1): binary indicators, read as probabilities.
+Right y-axis (0–3): continuous indicators, read as means.
+```{r}
+#| label: fig-indicator-profileneg
+
+fig_caption <- paste(
+  "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).",
+  "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
+  "Continuous bars are rescaled to the primary axis for display;"
+)
+
+# make_panel() takes explicit axis config so Negative and Positive can differ.
+#
+# Negative: left = binary 0-1, right = continuous 0-3
+#   primary axis shows 0-1; sec.axis multiplies by scale_factor to show 0-3
+#
+# Positive: left = continuous 0-3, right = binary 0-1
+#   primary axis shows 0-3; sec.axis divides by scale_factor to show 0-1
+
+make_panel <- function(risk_label,
+                       left_name = "" ,left_lim, left_breaks,
+                       sec_transform, right_name = "", right_breaks) {
+
+  df <- profile_long %>% filter(Risk == risk_label)
+
+  ggplot(df, aes(x = Indicators, y = value_plot, fill = cluster)) +
+     geom_vline(
+  xintercept = seq(1.5, length(unique(df$Indicators)) - 0.5, by = 1),
+  color      = "#DDDDDD",
+  linewidth  = 0.4
+) +
+    geom_col(
+      position = position_dodge(width = dodge_width),
+      width    = bar_width
+    ) +
+    scale_fill_manual(values = indicator_colors, labels = cluster_labels,
+                      name = NULL) +
+    scale_y_continuous(
+      #name   = left_name,
+      limits = left_lim,
+      breaks = left_breaks,
+      labels = number_format(accuracy = 0.1),
+      expand = expansion(mult = c(0, 0.03)),
+      sec.axis = sec_axis(
+        transform = sec_transform,
+        name      = right_name,
+        breaks    = right_breaks,
+        labels    = number_format(accuracy = 0.1)
+      )
+    ) +
+    labs(title = paste(risk_label, "Risk Indicators"), y = NULL, caption = fig_caption) +
+    base_theme +
+    theme(
+      axis.text.x        = element_text(angle = 35, hjust = 1,
+                                        size = axis_text_size),
+      axis.title.y.right = element_text(size = axis_title_size,
+                                        color = "gray40"),
+      legend.position    = "none",
+      plot.title         = element_text(size = title_size, face = "bold",
+                                        hjust = 0.5),
+          plot.margin       = margin(20, 0, 40, 100)
+    )
+}
+
+# Negative: left=binary(0-1), right=continuous(0-3)
+p_neg <- make_panel(
+  risk_label    = "Negative",
+  #left_name     = "Probability (binary indicators)",
+  left_lim      = c(0, 1.08),
+  left_breaks   = seq(0, 1, by = 0.2),
+  sec_transform = ~ . * scale_factor,
+ # right_name    = "Within-class mean (continuous indicators)",
+  right_breaks  = seq(0, scale_factor, by = 1)
+)
+
+# Positive: left=continuous(0-3), right=binary(0-1)
+p_pos <- make_panel(
+  risk_label    = "Positive",
+ # left_name     = "Within-class mean (continuous indicators)",
+  left_lim      = c(0, scale_factor * 1.08),
+  left_breaks   = seq(0, scale_factor, by = 1),
+  sec_transform = ~ . / scale_factor,
+ # right_name    = "Probability (binary indicators)",
+  right_breaks  = seq(0, 1, by = 0.2)
+)
+
+print(p_neg)
+
+
+ggsave(
+  filename = file.path(fig_indicator, "profile_figure_neg.png"),
+     device = agg_png,
+  plot     = p_neg,
+  width    = 14, height = 6, dpi = fig_dpi, units = "in"
+)
+```
+@fig-indicator-profilepos: Positive Indicators
+Left y-axis (0–3): continuous indicators, read as means.
+Right y-axis (0–1): binary indicators, read as probabilities.
+```{r}
+#| label: fig-indicator-profilepos
+
+print(p_pos)
+ggsave(
+  filename = file.path(fig_indicator, "profile_figure_pos.png"),
+  plot     = p_pos,    
+  device = agg_png,
+  width    = 14, height = 6, dpi = fig_dpi, units = "in"
+)
+```
+
+@fig-indicator-profile: Profiles
+The two panels (Negative risk / Positive risk) share  dual-axis 
+and are combined into one figure.
+```{r}
+#| label: fig-indicator-profile
+#| fig-width: 14
+#| fig-height: 6
+# Remove left axis from positive panel
+# so the shared 0-3 middle axis appears only once
+p_neg_trim <- p_neg +
+  theme(
+    axis.text.y.right = element_text(margin = margin(l = 12)),
+    plot.margin       = margin(12, 0, 20, 85)
+  )
+p_pos_trim <- p_pos +
+  theme(
+    axis.title.y.left = element_blank(),
+    axis.text.y.left  = element_blank(),
+   # axis.ticks.y.left = element_blank(),
+    plot.margin       = margin(12, 12, 12, 0)    # no left margin only
+  )
+combined <- (p_neg_trim + p_pos_trim) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "none")
+combined
+
+ggsave(
+  filename = file.path(fig_indicator, "profile_figures_combined.png"),
+  plot     = combined,
+  width    = 40, height = 6, dpi = fig_dpi, units = "in"
+)
+```
+
+# Table: Non-Significant Comparisons
+@tbl-nonsig: List of non-significant pairwise comparisons
+```{r}
+#| label: tbl-nonsig
+nonsig <- pairs %>%
+  filter(sig == FALSE) %>%
+  select(Indicator, pair, p_value, p_adj) %>%
+  mutate(across(c(p_value, p_adj), ~ round(.x, 3))) %>%
+  arrange(Indicator, pair)
+
+kable(nonsig,
+      col.names = c("Indicator", "Comparison", "Raw p", "BH-adjusted p"),
+      caption   = "Non-significant pairwise comparisons after Benjamini-Hochberg correction (FDR < .05).")
+```
+
+# Significant Comparisons by Profile
+@tbl-sig-cluster: Total Significant Pairwise Comparisons by Cluster
+```{r}
+#| label: tbl-sig-cluster
+sig_pairs <- pairs %>% filter(sig == TRUE)
+
+by_cluster <- bind_rows(
+  sig_pairs %>% select(cluster = cluster_a, Indicator),
+  sig_pairs %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(by_cluster,
+      col.names = c("Profile", "Number of Significant Pairwise Comparisons"),
+      caption   = "Count of significant pairwise comparisons (BH-corrected, FDR < .05) involving each profile.")
+```
+
+# Significant Comparisons by Indicator
+@tbl-sig-indicator: Total Significant Pairwise Comparisons by Indicator
+```{r}
+#| label: tbl-sig-indicator
+by_indicator <- pairs %>%
+  group_by(Indicator) %>%
+  summarise(
+    n_total       = n(),
+    n_significant = sum(sig),
+    n_nonsig      = sum(!sig)
+  ) %>%
+  arrange(desc(n_significant))
+
+kable(by_indicator,
+      col.names = c("Indicator", "Total Comparisons", "Significant", "Non-Significant"),
+      caption   = "Count of significant and non-significant pairwise comparisons (BH-corrected, FDR < .05) by indicator.")
+```
+
+# Line Profile Figure
+```{r}
+#| label: fig-indicator-profileneg-line
+fig_caption_line <- paste(
+  "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).",
+  "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
+  "Continuous values are rescaled to the primary axis for display;"
+)
+
+make_panel_line <- function(risk_label,
+                            left_name  = "", left_lim, left_breaks,
+                            sec_transform, right_name = "", right_breaks) {
+  df_line <- profile_long %>% filter(Risk == risk_label)
+  ggplot(df_line, aes(x = Indicators, y = value_plot,
+                      color = cluster, group = cluster)) +
+ geom_vline(
+  xintercept = seq(1.5, length(unique(df_line$Indicators)) - 0.5, by = 1),
+  color      = "gray90",
+  linewidth  = 0.4
+) +
+    geom_line(linewidth = 3) +
+    geom_point(size = 4) + 
+    scale_color_manual(values = indicator_colors, labels = cluster_labels,
+                       name = NULL) +
+    scale_y_continuous(
+      limits = left_lim,
+      breaks = left_breaks,
+      labels = number_format(accuracy = 0.1),
+      expand = expansion(mult = c(0, 0.03)),
+      sec.axis = sec_axis(
+        transform = sec_transform,
+        name      = right_name,
+        breaks    = right_breaks,
+        labels    = number_format(accuracy = 0.1)
+      )
+    ) +
+    labs(title = paste(risk_label, "Risk Indicators"), y = NULL, caption = fig_caption_line) +
+    base_theme +
+    theme(
+      axis.text.x        = element_text(angle = 35, hjust = 1,
+                                        size = axis_text_size),
+      axis.title.y.right = element_text(size = axis_title_size,
+                                        color = "gray40"),
+      legend.position    = "none",
+      plot.title         = element_text(size = title_size, face = "bold",
+                                        hjust = 0.5),
+      plot.margin       = margin(12, 0, 20, 85)
+    )
+}
+
+# Negative: left=binary(0-1), right=continuous(0-3)
+p_line_neg <- make_panel_line(
+  risk_label    = "Negative",
+  left_lim      = c(0, 1.08),
+  left_breaks   = seq(0, 1, by = 0.2),
+  sec_transform = ~ . * scale_factor,
+  right_breaks  = seq(0, scale_factor, by = 1)
+)
+
+# Positive: left=continuous(0-3), right=binary(0-1)
+p_line_pos <- make_panel_line(
+  risk_label    = "Positive",
+  left_lim      = c(0, scale_factor * 1.08),
+  left_breaks   = seq(0, scale_factor, by = 1),
+  sec_transform = ~ . / scale_factor,
+  right_breaks  = seq(0, 1, by = 0.2)
+)
+
+
+print(p_line_neg)
+ggsave(
+  filename = file.path(fig_indicator, "profile_figure_line_neg.png"),
+  device   = agg_png,
+  plot     = p_line_neg,
+  width    = 24, height = 8, dpi = fig_dpi, units = "in"
+)
+
+print(p_line_pos)
+ggsave(
+  filename = file.path(fig_indicator, "profile_figure_line_pos.png"),
+  device   = agg_png,
+  plot     = p_line_pos,
+  width    = 24, height = 8, dpi = fig_dpi, units = "in"
+)
+```
+
+```{r}
+# Remove left axis from positive panel so the shared 0-3 middle axis appears only once
+p_neg_trim_line <- p_line_neg +
+  theme(
+    axis.text.y.right = element_text(margin = margin(l = 12)),
+    plot.margin       = margin(12, 0, 20, 85)
+  )
+p_pos_trim_line <- p_line_pos +
+  theme(
+    axis.title.y.left = element_blank(),
+    axis.text.y.left  = element_blank(),
+   # axis.ticks.y.left = element_blank(),
+    plot.margin       = margin(12, 12, 12, 0)    # no left margin only
+  )
+combined_line <- (p_neg_trim_line + p_pos_trim_line) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "none")
+combined_line
+
+ggsave(
+  filename = file.path(fig_indicator, "profile_figures_combined_line.png"),
+  plot     = combined_line,
+  width    = 24, height = 14, dpi = fig_dpi, units = "in"
+)
+```
+
+

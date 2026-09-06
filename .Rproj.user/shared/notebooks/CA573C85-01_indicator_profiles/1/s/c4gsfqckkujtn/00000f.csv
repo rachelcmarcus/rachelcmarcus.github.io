@@ -1,0 +1,5 @@
+"0","#| label: fig-indicator-profilepos"
+"0","#| fig-width: 14"
+"0","#| fig-height: 6"
+"0",""
+"0","print(p_pos)"

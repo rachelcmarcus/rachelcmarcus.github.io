@@ -1,0 +1,247 @@
+---
+title: "Indicator Profiles — Standardized (Z-Score)"
+code-fold: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+source("_setup.R")
+library(haven)   # read_sav
+```
+
+# Standardized Profile Panels
+
+I also standardized based on the within class average for each indicator, allowing for a visualization of how each profile compares to the mean. The code used to create the figures is below.
+
+
+# Variable Labels
+
+```{r}
+#| label: variable-labels
+
+#Variable labels for plots
+indicator_label_map <- c(
+  WSDalc               = "Alcohol Problems",
+  cigwhole             = "Cigarette",
+  skipschool           = "Skipped school",
+  liewhere             = "Lied about whereabouts",
+  awayhome             = "Night out(unsanctioned)",
+  dare_dum             = "Dangerous dare",
+  seatbelt             = "No seatbelt",
+  drvdrunk             = "Drove Drunk",
+  BC_dum               = "Risky Sex",
+  steal12M             = "Theft",
+  phyfight             = "Fight",
+  WSDsport             = "Sport Teams",
+  WSDactivity          = "School Activities",
+  avoidproblems        = "Problem Approach",
+  disclose             = "Friend Disclosure",
+  intitaterelationship = "Initiated Relationship")
+
+# "Negative" = negative risk indicators; "Positive" = positive risk indicators
+indicator_risk_panel <- c(
+  WSDalc               = "Negative",
+  cigwhole             = "Negative",
+  skipschool           = "Negative",
+  liewhere             = "Negative",
+  awayhome             = "Negative",
+  dare_dum             = "Negative",
+  seatbelt             = "Negative",
+  drvdrunk             = "Negative",
+  BC_dum               = "Negative",
+  steal12M             = "Negative",
+  phyfight             = "Negative",
+  WSDsport             = "Positive",
+  WSDactivity          = "Positive",
+  avoidproblems        = "Positive",
+  disclose             = "Positive",
+  intitaterelationship = "Positive")
+
+# Desired x-axis order within each panel — edit to reorder bars
+neg_order <- c(
+  "WSDalc", "cigwhole", "skipschool", "liewhere", "awayhome",
+  "dare_dum", "seatbelt", "drvdrunk", "BC_dum", "steal12M", "phyfight")
+
+pos_order <- c(
+  "WSDsport", "WSDactivity", "avoidproblems", "disclose", "intitaterelationship")
+```
+
+# Standardization
+
+```{r}
+#| label: import
+#| echo: false
+
+sav_path <- "C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Rachel M & Rina/Dissertation/Analysis/Study 1/LCAwASP_4CProbabilities.sav"
+
+sav_raw <- read_sav(sav_path)
+```
+
+Class probabilities and indicator values are read in from the dissertation's saved SPSS output (a 4-class LCA solution with an auxiliary ASP scale). Each indicator is then z-scored so the plotted classes are on a common scale.
+
+```{r}
+#| label: standardize
+
+# Variable names present in the indicator map
+indicator_vars <- names(indicator_label_map)
+
+# Standardize each indicator across the full sample
+sav_scaled <- sav_raw %>%
+  mutate(across(all_of(indicator_vars), ~ as.numeric(scale(.x))))
+
+# Compute within-class means of z-scores
+# Class variable assumed to be named "class" — update if different in your file
+zscore_long <- sav_scaled %>%
+  select(`clu#`, all_of(indicator_vars)) %>%
+  pivot_longer(
+    cols      = all_of(indicator_vars),
+    names_to  = "variable",
+    values_to = "z_score"
+  ) %>%
+  group_by(`clu#`, variable) %>%
+  summarise(mean_z = mean(z_score, na.rm = TRUE), .groups = "drop") %>%
+  mutate(
+    cluster    = paste0("C", `clu#`),
+    cluster    = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
+    label      = indicator_label_map[variable],
+    Risk       = indicator_risk_panel[variable],
+    label      = factor(label, levels = indicator_label_map[c(neg_order, pos_order)])
+  )
+
+```
+
+# Legend Labels
+
+```{r}
+#| label: legend-labels
+
+# Cluster sizes
+cluster_sizes_z <- c("C1" = 35.6, "C2" = 33.7, "C3" = 15.8, "C4" = 14.9)
+
+# Edit the description for each cluster here
+cluster_descriptions <- c(
+  "C1" = "High PR - Low NR",
+  "C2" = "Low PR - Low NR",
+  "C3" = "Low PR - High NR",
+  "C4" = "High PR - High NR"
+)
+
+cluster_labels_z <- setNames(
+  paste0(names(cluster_sizes_z), ": ", cluster_descriptions, " (", cluster_sizes_z, "%)"),
+  names(cluster_sizes_z)
+)
+cluster_colors <- c(
+  "C1" = "#44AA99",
+  "C2" = "#88CCEE",   
+  "C3" = "#882255",
+  "C4" = "#DDCC77"   
+)
+
+# Colors — pulls from cluster_colors defined in _setup.R
+zscore_colors <- cluster_colors
+```
+
+# Z-Score Profile Panels
+
+A horizontal reference line at z = 0 marks the sample average so it is immediately clear which profiles fall above vs. below the mean on each indicator. 
+
+```{r}
+#| label: make-zscore-panel
+
+# Function to create panel for profiles
+make_zscore_panel <- function(risk_label) {
+
+  # Set x-axis variable order
+  panel_order <- if (risk_label == "Negative") {
+    indicator_label_map[neg_order]
+  } else {
+    indicator_label_map[pos_order]
+  }
+
+  # Select columns from dataset
+  panel_data <- zscore_long %>%
+    filter(Risk == risk_label) %>%
+    mutate(label = factor(label, levels = panel_order))
+  
+  # Recode for graph 
+  panel_data <- zscore_long %>%
+    filter(Risk == risk_label) %>%
+    mutate(label = factor(label, levels = panel_order)) %>%
+    mutate(mean_z = case_when(
+      mean_z >  1.0 ~  1.1,
+      mean_z < -0.5 ~ -0.6,
+      TRUE          ~  mean_z
+    ))
+
+  # Create plot
+  ggplot(panel_data, aes(x = label, y = mean_z, fill = cluster)) +
+    geom_hline(yintercept = 0, color = "black", linewidth = 0.6, linetype = "solid") +
+   geom_vline(
+    xintercept = seq(1.5, length(panel_order) - 0.5, by = 1),
+    color      = "gray63",
+    linewidth  = .8
+  ) +
+    geom_col(
+      position = position_dodge(width = dodge_width),
+      width    = bar_width
+    ) +
+    scale_fill_manual(
+      values = zscore_colors,
+      labels = cluster_labels_z,
+      name   = NULL
+    ) +
+    scale_y_continuous(
+      limits = c(-.6, 1.1),
+     # breaks = seq(-.5, 1.0, by = 0.5),
+    #  labels = number_format(accuracy = 0.1),
+    breaks = c(-0.5,  0, 0.5, 1.0),
+  labels = c("Below -0.5", "0.0", "0.5", "Above 1.0"),
+      expand = expansion(mult = c(0.02, 0.02))
+    ) + 
+    labs(
+      title   = paste(risk_label, "Risk-Taking Indicators"),
+      y       = "Mean (Standardized)",
+      caption = "Mean standardized (z-scored) indicator values by latent class. Values below −0.5 or above 1.0 are capped for display."
+    ) +
+    base_theme +
+    theme(
+      axis.text.x     = element_text(angle = 30, hjust = 1,
+                                     size = axis_text_size, family = plot_font),
+      legend.position = "none", 
+       plot.margin       = margin(40, 0, 40, 100)
+    )
+}
+
+# Run function for each indicator set
+p_zneg <- make_zscore_panel("Negative")
+p_zpos <- make_zscore_panel("Positive")
+
+# Save negative panel
+ggsave(
+  filename = file.path(fig_indicator, "zscore_profile_neg.png"),
+  device   = agg_png,
+  plot     = p_zneg,
+  width    = 14, height = 8, dpi = fig_dpi, units = "in",
+  bg       = "transparent")
+
+# Save positive panel
+ggsave(
+  filename = file.path(fig_indicator, "zscore_profile_pos.png"),
+  device   = agg_png,
+  plot     = p_zpos,
+  width    = 14, height = 8, dpi = fig_dpi, units = "in",
+  bg       = "transparent")
+```
+
+```{r}
+#| label: panel-standardized-neg
+#| echo: false
+print(p_zneg)  
+```
+
+```{r}
+#| label: panel-standardized-pos
+#| echo: false
+print(p_zpos)
+```

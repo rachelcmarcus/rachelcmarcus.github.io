@@ -1,0 +1,40 @@
+---
+title: "SPR Cup Analysis"
+description: "[One-line description of the research question]"
+---
+
+## Overview
+
+[Two to three sentences: the question, the sample, why this analysis matters.]
+
+## Data preparation
+
+Raw data cleaning and recoding for this project was done in SPSS prior to import into R. The full cleaning script runs to [~X] lines; an excerpt is shown below to document the approach, SPSS syntax isn't executable here, so this is reference only, not a run chunk.
+
+```spss
+* Excerpt from full cleaning syntax (recoding step shown; full script also
+* handles missingness screening, variable labeling, and export).
+
+RECODE sub_use1 sub_use2 sub_use3 (1,2=1)(3 thru 5=0)(ELSE=SYSMIS)
+  INTO sub_use1_bin sub_use2_bin sub_use3_bin.
+```
+
+The cleaned `.sav` file was exported to `.csv` for the R analysis below. [Note: raw data not included due to data use agreement / IRB restriction. A codebook describing variables is available in `data/codebook.csv`.]
+
+## Analysis
+
+```{r}
+#| label: load-packages
+#| message: false
+
+library(tidyverse)
+library(here)
+```
+
+```{r}
+#| label: load-data
+
+# df <- read_csv(here("data", "spr_cup_cleaned.csv"))
+```
+
+[Continue with the actual modeling code, tables, and figures. Code chunks stay visible by default per the site-wide code-fold: show setting, and can be collapsed with the toggle above each one.]

@@ -1,0 +1,6 @@
+"0","ggsave("
+"0","  filename = file.path(fig_indicator, ""profile_figure_line_pos.png""),"
+"0","  device   = agg_png,"
+"0","  plot     = p_line_pos,"
+"0","  width    = 24, height = 8, dpi = fig_dpi, units = ""in"""
+"0",")"

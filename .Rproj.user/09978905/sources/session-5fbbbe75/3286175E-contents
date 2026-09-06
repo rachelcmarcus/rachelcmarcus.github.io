@@ -1,0 +1,507 @@
+---
+title: "Import_BL_WH_Reliability"
+date: "2026-08-12"
+---
+
+
+# Purpose
+
+This file calculates inter-rater reliability for baseline observational warmth coding.
+
+It imports the separate reliability-coded CARMA files, processes them using the same second-by-second cleaning rules defined in [Baseline Warmth Data Import, Processing, and Reliability](Import_BL_WH_Syntax_annotated_v4.qmd), matches them to the corresponding original-coded observations, and calculates inter-rater reliability. Reliability data stay in R and are **not added to `BL_WH.sav`**.
+
+Warmth values of **0** are converted to `NA` during processing so that SPSS reads them as system-missing values and they are excluded from average warmth scores.
+
+# 1. Setup
+
+## Update the Box file path
+
+**This is the main section a new user should edit.** Replace only the user-specific portion of `PROJECT_ROOT` with the location of the `ff (cast.casbox )` Box folder on your computer.
+
+Everything else in this file is built from that root path. If the Box folder structure has not changed, no other path should need to be edited.
+
+**Windows example:** `"C:/Users/abc1234/Box/ff (cast.casbox )"`\
+**Mac example:** `"/Users/abc1234/Library/CloudStorage/Box-Box/ff (cast.casbox )"`
+
+Use **forward slashes** in the path, including on Windows.
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+#| label: file-paths
+# EDIT THIS LINE: replace the user-specific portion with your own Box location.
+PROJECT_ROOT <- "C:/Users/rcm5550/Box/ff (cast.casbox )"
+
+# Original baseline warmth CARMA files are stored within one subfolder per couple.
+PATH_CARMA_BASELINE_WARMTH <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding/Couple Interaction Coding (warmth, withdrawal, hostility)",
+  "Carma Files/Baseline/Warmth"
+)
+
+# Positive warmth reliability files.
+PATH_WARMTH_POS_RELIABILITY <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding",
+  "Couple Interaction Coding (warmth, withdrawal, hostility)",
+  "Reliability/Baseline/Warmth/Positive"
+)
+
+# Negative warmth reliability files.
+# EDIT ONLY IF the Negative reliability folder uses a different folder structure.
+PATH_WARMTH_NEG_RELIABILITY <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding",
+  "Couple Interaction Coding (warmth, withdrawal, hostility)",
+  "Reliability/Baseline/Warmth/Negative"
+)
+
+# Final merged SPSS file lives in the baseline computed-data folder.
+PATH_OUTPUT_BL_WH <- file.path(
+  PROJECT_ROOT,
+  "DATA & SYNTAX/COMPUTED DATA/Baseline/Observed couple relationship/BL_WH.sav"
+)
+```
+
+## Load required R packages
+
+These packages are used to import files, reshape the second-by-second warmth data, combine datasets, and export the final SPSS `.sav` file.
+`tidyverse` is used for file processing, reshaping, and matching. `haven` reads the SPSS dataset. `irr` is for ICC calculation
+
+
+```{r}
+#| label: libraries
+library(tidyverse)
+library(haven)
+library(irr)
+```
+
+
+# 2. Prepare the Original-Coder Data for Reliability Analysis {#sec-original-coder-data}
+
+The production datasets are intentionally wide because that is the useful structure for the final SPSS handoff. Reliability analysis is easier to audit in **long form**, where each row identifies one couple, one second, one condition, one target person, and one coder's warmth value.
+
+The function below converts one already-processed production dataset (`BL_M_NEG_WH`, `BL_P_NEG_WH`, `BL_M_POS_WH`, `BL_P_POS_WH`, built in [Baseline Warmth Data Import, Processing, and Reliability](Import_BL_WH_Syntax_annotated_v4.qmd)) back to long form for reliability matching. It uses the processed R data rather than re-importing the original CARMA files, so the reliability coder is compared directly against the values that entered the computed production datase.
+
+```{r}
+#| label: original-to-long-function
+production_to_long <- function(dataset, variable_prefix, condition, person) {
+
+  # Convert the second-by-second production variables back to one row per second.
+  dataset %>%
+    select(ID, starts_with(paste0(variable_prefix, "."))) %>%
+    pivot_longer(
+      cols = -ID,
+      names_to = "variable",
+      values_to = "warmth"
+    ) %>%
+    mutate(
+      second = suppressWarnings(as.numeric(str_remove(variable, paste0("^", variable_prefix, "\\."))))
+    ) %>%
+    filter(!is.na(second)) %>%
+    transmute(
+      ID = ID,
+      condition = condition,
+      person = person,
+      second = second,
+      OG = warmth
+    )
+}
+```
+
+The four original-coded condition datasets are stacked into one long reference table. This table is temporary and is used only for matching the reliability files to the original coded values.
+
+```{r}
+#| label: original-reliability-reference
+# Convert each processed production condition to long form and label its condition and target person.
+ORIGINAL_WARMTH_LONG <- bind_rows(
+  production_to_long(BL_M_NEG_WH, "blmnwh", "Negative", "Mom"),
+  production_to_long(BL_P_NEG_WH, "blfnwh", "Negative", "Partner"),
+  production_to_long(BL_M_POS_WH, "blmpwh", "Positive", "Mom"),
+  production_to_long(BL_P_POS_WH, "blfpwh", "Positive", "Partner")
+)
+```
+
+# 6. Import Reliability-Coded Warmth Files {#sec-import-reliability-files}
+
+## Identify Mom versus Partner from reliability file names
+
+Reliability files need to be matched to the correct original Mom or Partner coding stream. Positive reliability files use names such as `124BL_M_POS_WH_RM.csv` and `133BL_P_POS_WH_RM.csv`. Negative reliability naming is less standardized, so this function recognizes several explicit Mom/Partner markers while avoiding assumptions based on fixed character positions.
+
+The script stops and prints the unclassified file name if it cannot determine Mom versus Partner. That stop is intentional: guessing the target person would create an invalid reliability comparison.
+
+```{r}
+#| label: reliability-person-function
+classify_reliability_person <- function(filename_full) {
+
+  # Standardize the full path to uppercase for case-insensitive pattern matching.
+  text <- str_to_upper(filename_full)
+
+  # Identify explicit Mom/Mother or standalone M markers.
+  is_mom <- str_detect(text, "MOM|MOTHER|(^|[/_ -])M([/_ -]|$)")
+
+  # Identify explicit Partner/Father/Dad or standalone P markers.
+  is_partner <- str_detect(text, "PARTNER|FATHER|DAD|(^|[/_ -])P([/_ -]|$)")
+
+  # Stop if the file is ambiguous or cannot be classified.
+  if (is_mom && is_partner) {
+    stop("Reliability file contains both Mom and Partner markers: ", basename(filename_full))
+  }
+
+  if (!is_mom && !is_partner) {
+    stop(
+      "Could not determine Mom versus Partner from reliability file: ",
+      basename(filename_full)
+    )
+  }
+
+  if (is_mom) "Mom" else "Partner"
+}
+```
+
+## Process a set of reliability files
+
+This function sends each selected reliability CSV through the same [`process_single_warmth_file()`](Import_BL_WH_Syntax_annotated_v4.qmd#sec-single-file-function) function used for the original CARMA files. It then labels the condition, target person, and reliability coder.
+
+Before returning the data, it checks that there is only one reliability source file for each `ID × condition × person` combination.
+
+```{r}
+#| label: reliability-processing-function
+process_reliability_files <- function(files_full, condition) {
+
+  # Stop if no reliability CSV files were found for this condition.
+  if (length(files_full) == 0) {
+    stop("No ", condition, " reliability files were found.")
+  }
+
+  # Build a file-level index before processing the second-by-second data.
+  file_index <- tibble(
+    source_path = files_full,
+    ID = map_chr(files_full, extract_couple_id),
+    person = map_chr(files_full, classify_reliability_person),
+    condition = condition
+  )
+
+  # Stop if more than one reliability file exists for the same video/coder target.
+  duplicate_files <- file_index %>%
+    count(ID, condition, person) %>%
+    filter(n > 1)
+
+  if (nrow(duplicate_files) > 0) {
+    stop(
+      "Duplicate reliability source files found for: ",
+      paste(
+        str_c(duplicate_files$ID, duplicate_files$condition, duplicate_files$person, sep = " / "),
+        collapse = "; "
+      )
+    )
+  }
+
+  # Process every reliability file with the same CARMA cleaning rules as production files.
+  map_dfr(seq_len(nrow(file_index)), function(i) {
+
+    processed <- process_single_warmth_file(file_index$source_path[i])
+
+    processed %>%
+      transmute(
+        ID = ID,
+        condition = file_index$condition[i],
+        person = file_index$person[i],
+        second = second,
+        RC = warmth,
+        source_file = source_file
+      )
+  })
+}
+```
+
+## Select and import Positive reliability files
+
+The Positive reliability folder is searched for CSV files. Files do not need to occupy fixed character positions; the three-digit ID is read from the beginning of the base file name, and Mom versus Partner is determined from the explicit `M` or `P` marker.
+
+```{r}
+#| label: import-positive-reliability
+  # Confirm that the Positive reliability folder exists before searching it.
+  if (!dir.exists(PATH_WARMTH_POS_RELIABILITY)) {
+    stop("Positive reliability folder does not exist: ", PATH_WARMTH_POS_RELIABILITY)
+  }
+
+
+  # Find all Positive reliability CSV files in the folder.
+  positive_reliability_files <- list.files(
+    path = PATH_WARMTH_POS_RELIABILITY,
+    pattern = "\\.csv$",
+    full.names = TRUE,
+    recursive = FALSE,
+    ignore.case = TRUE
+  )
+
+  # Import and process all Positive reliability files.
+  RELIABILITY_POSITIVE_LONG <- process_reliability_files(
+    files_full = positive_reliability_files,
+    condition = "Positive"
+  )
+
+```
+
+## Select and import Negative reliability files
+
+The Positive reliability folder is searched for CSV files. Files do not need to occupy fixed character positions; the three-digit ID is read from the beginning of the base file name, and Mom versus Partner is determined from the explicit `M` or `P` marker.
+
+```{r}
+#| label: import-negative-reliability
+  # Confirm that the Negative reliability folder exists before searching it.
+    if (!dir.exists(PATH_WARMTH_NEG_RELIABILITY)) {
+      stop("Negative reliability folder does not exist: ", PATH_WARMTH_NEG_RELIABILITY)
+    }
+
+
+    # Find all Negative reliability CSV files in the folder.
+    negative_reliability_files <- list.files(
+      path = PATH_WARMTH_NEG_RELIABILITY,
+      pattern = "\\.csv$",
+      full.names = TRUE,
+      recursive = FALSE,
+      ignore.case = TRUE
+    )
+
+    # Import and process all Negative reliability files.
+    RELIABILITY_NEGATIVE_LONG <- process_reliability_files(
+      files_full = negative_reliability_files,
+      condition = "Negative"
+    )
+```
+
+## Combine all reliability-coded observations
+
+The Positive RC and Negative RC observations are stacked into a single temporary long-form reliability dataset. One row represents one coded second from one reliability coder.
+
+```{r}
+#| label: combine-reliability
+  # Combine Positive and Negative reliability observations into one long dataset.
+  RELIABILITY_LONG <- bind_rows(
+    RELIABILITY_POSITIVE_LONG,
+    RELIABILITY_NEGATIVE_LONG
+  )
+
+  duplicate_reliability <- RELIABILITY_LONG %>%
+    count(ID, condition, person, second) %>%
+    filter(n > 1)
+```
+
+# 7. Match Reliability Codes to the Original Coder {#sec-match-reliability}
+
+ICC should compare the **same video at the same second** for the [original](#sec-original-coder-data) and [reliability](#sec-import-reliability-files) coders. This section therefore matches data on `ID + condition + person + second` before calculating reliability.
+
+The quality checks are restricted to videos that actually have a reliability file. The script stops if a selected reliability video is absent from the original processed data or if the original and reliability versions contain different sets of seconds. This prevents an ICC from being calculated on accidentally misaligned time windows.
+
+```{r}
+#| label: match-reliability
+  # Identify the exact videos that have been selected for reliability analysis.
+  reliability_video_keys <- RELIABILITY_WARMTH_LONG %>%
+    distinct(ID, condition, person)
+
+  # Restrict the original reference data to those same reliability-coded videos.
+  ORIGINAL_FOR_RELIABILITY <- ORIGINAL_WARMTH_LONG %>%
+    semi_join(
+      reliability_video_keys,
+      by = c("ID", "condition", "person")
+    )
+
+  # Identify reliability-coded seconds that have no matching original-coded second.
+  reliability_without_original <- RELIABILITY_WARMTH_LONG %>%
+    anti_join(
+      ORIGINAL_FOR_RELIABILITY,
+      by = c("ID", "condition", "person", "second")
+    )
+
+  # Identify original-coded seconds that are absent from the corresponding reliability file.
+  original_without_reliability <- ORIGINAL_FOR_RELIABILITY %>%
+    anti_join(
+      RELIABILITY_WARMTH_LONG,
+      by = c("ID", "condition", "person", "second")
+    )
+
+  # Stop rather than calculate ICC on mismatched second-by-second windows.
+  if (nrow(reliability_without_original) > 0) {
+    stop(
+      "Reliability-coded observations were found without matching original ID/person/second values. ",
+      "Review object: reliability_without_original"
+    )
+  }
+  # Stop only if a reliability-coded observation cannot be matched to its
+  # corresponding original-coded observation.
+  reliability_without_original <- RELIABILITY_LONG %>%
+    anti_join(
+      ORIGINAL_WARMTH_LONG,
+      by = c("ID", "condition", "person", "second")
+    )
+
+  if (nrow(reliability_without_original) > 0) {
+    stop(
+      "Reliability-coded observations were found without matching original ",
+      "ID/condition/person/second values. Review object: reliability_without_original"
+    )
+  }
+
+  # Keep only observations that were coded by both the original coder and
+  # the reliability coder.
+  RELIABILITY_MERGED <- ORIGINAL_WARMTH_LONG %>%
+    inner_join(
+      RELIABILITY_LONG,
+      by = c("ID", "condition", "person", "second")
+    )
+
+  # Join the original and reliability values for exact ID/person/second comparisons.
+  RELIABILITY_MATCHED <- ORIGINAL_FOR_RELIABILITY %>%
+    inner_join(
+      RELIABILITY_WARMTH_LONG,
+      by = c("ID", "condition", "person", "second")
+    ) %>%
+    arrange(condition, person, ID, second)
+```
+
+## Review the reliability samples before ICC
+
+This table shows the number of reliability-coded videos, the number of matched seconds, and the number of seconds with nonmissing warmth values from **both** coders. ICC uses only rows where both coder values are observed.
+
+```{r}
+#| label: reliability-sample-review
+# Summarize the reliability sample that will feed each ICC estimate.
+RELIABILITY_SAMPLE_SUMMARY <- RELIABILITY_MATCHED %>%
+  group_by(condition, person) %>%
+  summarise(
+    videos = n_distinct(ID),
+    matched_seconds = n(),
+    complete_pairs = sum(!is.na(warmth_original) & !is.na(warmth_reliability)),
+    .groups = "drop"
+  )
+
+knitr::kable(RELIABILITY_SAMPLE_SUMMARY, caption = "Reliability Sample Summary")
+```
+
+# 8. Calculate Inter-Rater Reliability (ICC)
+
+The primary reliability statistic is an **absolute-agreement, single-measure ICC** calculated from the [matched](#sec-match-reliability) second-by-second warmth codes. In `irr::icc()`, this is specified as a two-way model with `type = "agreement"` and `unit = "single"`, corresponding to ICC(A,1), commonly referred to as ICC(2,1).
+
+ICC is calculated separately for **Mom Positive, Partner Positive, Mom Negative, and Partner Negative** and then all together.
+
+Rows where either coder has a missing warmth value are excluded from that condition's ICC. The output includes the ICC estimate, 95% confidence interval, p-value, number of videos, and number of complete second-by-second coder pairs used.
+
+```{r}
+#| label: icc-function
+calculate_warmth_icc <- function(data) {
+
+  # Stop with a clear instruction if the ICC package is not installed.
+  if (!requireNamespace("irr", quietly = TRUE)) {
+    stop(
+      "The 'irr' package is required for ICC. Install it once with install.packages('irr'), ",
+      "then rerun this section."
+    )
+  }
+
+  # Keep only second-level observations with a nonmissing score from both coders.
+  icc_data <- data %>%
+    filter(!is.na(warmth_original), !is.na(warmth_reliability)) %>%
+    select(warmth_original, warmth_reliability)
+
+  # ICC requires at least two complete targets.
+  if (nrow(icc_data) < 2) {
+    return(
+      tibble(
+        ICC = NA_real_,
+        CI_lower = NA_real_,
+        CI_upper = NA_real_,
+        p_value = NA_real_,
+        complete_pairs = nrow(icc_data)
+      )
+    )
+  }
+
+  # Calculate two-way absolute-agreement, single-measure ICC.
+  icc_result <- irr::icc(
+    icc_data,
+    model = "twoway",
+    type = "agreement",
+    unit = "single",
+    conf.level = 0.95
+  )
+
+  # Return the main ICC statistics in a compact one-row table.
+  tibble(
+    ICC = unname(icc_result$value),
+    CI_lower = unname(icc_result$lbound),
+    CI_upper = unname(icc_result$ubound),
+    p_value = unname(icc_result$p.value),
+    complete_pairs = nrow(icc_data)
+  )
+}
+```
+
+```{r}
+#| label: calculate-icc
+# Calculate ICC separately for each condition and target person.
+ICC_RESULTS <- RELIABILITY_MATCHED %>%
+  group_by(condition) %>%
+  group_modify(~ calculate_warmth_icc(.x)) %>%
+  ungroup() %>%
+  left_join(
+    RELIABILITY_MATCHED %>%
+      group_by(condition) %>%
+      summarise(videos = n_distinct(ID), .groups = "drop"),
+    by = c("condition")
+  ) %>%
+  select(
+    condition,
+    videos,
+    complete_pairs,
+    ICC,
+    CI_lower,
+    CI_upper,
+    p_value
+  )
+
+knitr::kable(ICC_RESULTS, caption = "Inter-Rater Reliability (ICC) by Condition")
+```
+
+# 9. Percent Agreement Reliability
+
+As a complementary reliability metric to the [matched](#sec-match-reliability) ICC estimates above, this section calculates percent agreement: the share of seconds where the reliability coder's score falls within ±1 point of the original coder's score.
+
+```{r}
+#| label: percent-agreement
+  # Calculate whether each second is within ±1 point between the original coder
+  # and reliability coder.
+  RELIABILITY_MERGED <- RELIABILITY_MERGED %>%
+    mutate(
+      abs_difference = abs(OG - RC),
+      reliable = case_when(
+        abs_difference <= 1 ~ 1,
+        abs_difference >= 2 ~ 0,
+        TRUE ~ NA_real_
+      )
+    )
+
+  # Calculate percent agreement separately for Mom Positive, Partner Positive,
+  # Mom Negative, and Partner Negative.
+  #
+  # Percent agreement is the percentage of seconds for which the reliability
+  # coder's score is within ±1 point of the original coder's score.
+
+  PERCENT_AGREEMENT <- RELIABILITY_MERGED %>%
+    filter(!is.na(reliable)) %>%
+    group_by(condition) %>%
+    summarise(
+      reliable_seconds = sum(reliable),
+      total_seconds = n(),
+      percent_agreement = reliable_seconds / total_seconds * 100,
+      .groups = "drop"
+    ) %>%
+    arrange(condition)
+
+  knitr::kable(PERCENT_AGREEMENT, caption = "Percent Agreement (±1 point) by Condition")
+```

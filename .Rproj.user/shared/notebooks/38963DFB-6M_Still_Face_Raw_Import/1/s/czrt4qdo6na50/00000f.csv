@@ -1,0 +1,7 @@
+"0","#| label: final-review"
+"0","# A one-row summary: how many subjects made it into SF_RAW, and how many"
+"0","# variables (columns) it has (minus 1 to exclude the ID column itself)."
+"0","knitr::kable(tibble("
+"0","  n_subjects = n_distinct(SF_RAW$ID),"
+"0","  n_variables = ncol(SF_RAW) - 1"
+"0","), caption = ""Final Merged Dataset Summary"")"

@@ -1,0 +1,282 @@
+---
+title: "4-Class LCA: Benjamini-Hochberg Adjustment for Pairwise Comparisons"
+author: "Rachel C. Marcus"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+source("_setup.R")
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(patchwork)
+library(knitr)
+library(ragg)
+library(readxl)
+```
+
+## Data Import
+
+Predictor and paired-comparison results for the BCH (Bolck-Croon-Hagenaars) three-step auxiliary variable analysis are read in from the project's Excel results workbook. Import code is included but not rendered below.
+
+```{r}
+#| label: import
+#| echo: false
+
+pred_raw <- read_excel(data_path, sheet = "predictors paired comparisons")
+pairs_raw   <- read_excel(data_path, sheet = "paired comparisons")
+```
+
+
+# BH Corrections
+```{r}
+#| label: bh-pairs
+
+pairs_6c <- pairs_raw %>%
+  filter(Indicator != "Intercept", `p-value` != ".") %>%
+  mutate(
+    p_value   = as.numeric(`p-value`),
+    cluster_a = as.integer(clustera),
+    cluster_b = as.integer(clusterb),
+    pair      = paste0("C", cluster_a, " vs. C", cluster_b),
+    p_adj     = p.adjust(p_value, method = "BH"),
+    sig       = p_adj < .05
+  )
+
+pred_pairs <- pred_raw %>%
+  filter(covariate != "Intercept", `p-value` != ".") %>%
+  mutate(
+    p_value   = as.numeric(`p-value`),
+    cluster_a = as.integer(cluster_a),
+    cluster_b = as.integer(cluster_b),
+    pair      = paste0("C", cluster_a, " vs. C", cluster_b),
+    p_adj     = p.adjust(p_value, method = "BH"),
+    sig       = p_adj < .05
+  )
+
+```
+
+## Table: Non-Significant Indicator Comparisons
+@tbl-nonsig-6c: List of non-significant indicator comparisons
+```{r}
+#| label: tbl-nonsig-6c
+nonsig_6c <- pairs_6c %>%
+  filter(sig == FALSE) %>%
+  select(Indicator, pair, p_value, p_adj) %>%
+  mutate(across(c(p_value, p_adj), ~ round(.x, 3))) %>%
+  arrange(Indicator, pair)
+
+kable(nonsig_6c,
+      col.names = c("Indicator", "Comparison", "Raw p", "BH-adjusted p"),
+      caption   = "Non-significant indicator comparisons after Benjamini-Hochberg correction (FDR < .05).")
+
+```
+
+## Table: Significant Indicator Comparisons
+@tbl-sig-6c: List of significant indicator comparisons
+```{r}
+#| label: tbl-sig-6c
+sig_6c <- pairs_6c %>%
+  filter(sig == TRUE) %>%
+  select(Indicator, pair, p_value, p_adj) %>%
+  mutate(across(c(p_value, p_adj), ~ round(.x, 3))) %>%
+  arrange(Indicator, pair)
+
+kable(sig_6c,
+      col.names = c("Indicator", "Comparison", "Raw p", "BH-adjusted p"),
+      caption   = "Significant indicator comparisons after Benjamini-Hochberg correction (FDR < .05).")
+```
+
+
+## Table: Non-Significant Predictor Comparisons
+@tbl-nonsig-6pred: List of non-significant Predictor comparisons
+```{r}
+#| label: tbl-nonsig-6pred
+nonsig_pred <- pred_pairs %>%
+  filter(sig == FALSE) %>%
+  select(covariate, pair, p_value, p_adj) %>%
+  mutate(across(c(p_value, p_adj), ~ round(.x, 3))) %>%
+  arrange(covariate, pair)
+
+kable(nonsig_pred,
+      col.names = c("Indicator", "Comparison", "Raw p", "BH-adjusted p"),
+      caption   = "Non-significant Predictor comparisons after Benjamini-Hochberg correction (FDR < .05).")
+```
+
+
+## Table: Significant Predictor Comparisons
+@tbl-sig-6pred: List of significant Predictor comparisons
+```{r}
+#| label: tbl-sig-6pred
+sig_pred <- pred_pairs %>%
+  filter(sig == TRUE) %>%
+  select(covariate, pair, p_value, p_adj) %>%
+  mutate(across(c(p_value, p_adj), ~ round(.x, 3))) %>%
+  arrange(covariate, pair)
+
+kable(sig_pred,
+      col.names = c("Indicator", "Comparison", "Raw p", "BH-adjusted p"),
+      caption   = "Significant Predictor comparisons after Benjamini-Hochberg correction (FDR < .05).")
+```
+
+## Significant Indicator Comparisons by Profile
+@tbl-sig-cluster-6c: Total Significant Pairwise Indicator Comparisons by Cluster
+```{r}
+#| label: tbl-sig-cluster-6c
+sig_pairs_6c <- pairs_6c %>% filter(sig == TRUE)
+
+by_cluster_6c <- bind_rows(
+  sig_pairs_6c %>% select(cluster = cluster_a, Indicator),
+  sig_pairs_6c %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(by_cluster_6c,
+      col.names = c("Profile", "Number of Significant Pairwise Comparisons"),
+      caption   = "Count of significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
+
+
+```
+
+## Table: Class 1 vs 2 Filtered
+```{r}
+#| label: tbl-sig-cluster-6c12
+sig_pairs_6c12 <- pairs_6c %>% filter(sig == TRUE & clustera == 1 & clusterb == 2)
+
+sig_pairs_6c12 <- bind_rows(
+  sig_pairs_6c12 %>% select(cluster = cluster_a, Indicator),
+  sig_pairs_6c12 %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(sig_pairs_6c12,
+      col.names = c("Profile", "Number of Significant Pairwise Comparisons"),
+      caption   = "Count of significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
+
+
+
+nonsig_pairs_6c12 <- pairs_6c %>% filter(sig == FALSE & clustera == 1 & clusterb == 2)
+
+nonsig_pairs_6c12 <- bind_rows(
+  nonsig_pairs_6c12 %>% select(cluster = cluster_a, Indicator),
+  nonsig_pairs_6c12 %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(nonsig_pairs_6c12,
+      col.names = c("Profile", "Number of Non-Significant Pairwise Comparisons"),
+      caption   = "Count of non-significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
+```
+
+
+## Table: Class 3 vs 4 Filtered
+```{r}
+#| label: tbl-sig-cluster-6c34
+sig_pairs_6c34 <- pairs_6c %>% filter(sig == TRUE & clustera == 3 & clusterb == 4)
+
+sig_pairs_6c34 <- bind_rows(
+  sig_pairs_6c34 %>% select(cluster = cluster_a, Indicator),
+  sig_pairs_6c34 %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(sig_pairs_6c34,
+      col.names = c("Profile", "Number of Significant Pairwise Comparisons"),
+      caption   = "Count of significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
+
+
+
+nonsig_pairs_6c34 <- pairs_6c %>% filter(sig == FALSE & clustera == 3 & clusterb == 4)
+
+nonsig_pairs_6c34 <- bind_rows(
+  nonsig_pairs_6c34 %>% select(cluster = cluster_a, Indicator),
+  nonsig_pairs_6c34 %>% select(cluster = cluster_b, Indicator)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(nonsig_pairs_6c34,
+      col.names = c("Profile", "Number of Non-Significant Pairwise Comparisons"),
+      caption   = "Count of non-significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
+```
+
+## Significant Demograpnic Comparisons by Profile
+@tbl-sig-cluster-6pred: Total Significant Pairwise Predictor Comparisons by Cluster
+```{r}
+#| label: tbl-sig-cluster-6pred
+
+sig_pred <- pred_pairs %>% filter(sig == TRUE)
+
+by_cluster_6pred <- bind_rows(
+  sig_pred %>% select(cluster = cluster_a, covariate),
+  sig_pred %>% select(cluster = cluster_b, covariate)
+) %>%
+  mutate(cluster = paste0("C", cluster)) %>%
+  count(cluster, name = "n_significant") %>%
+  arrange(cluster)
+
+kable(by_cluster_6pred,
+      col.names = c("Profile", "Number of Significant Pairwise Comparisons"),
+      caption   = "Count of significant Predictor comparisons (BH-corrected, FDR < .05) involving each profile.")
+```
+
+## Significant Comparisons by Indicator
+@tbl-sig-indicator-6c: Total Significant Pairwise Comparisons by Indicator
+```{r}
+#| label: tbl-sig-indicator-6c
+by_indicator_6c <- pairs_6c %>%
+  group_by(Indicator) %>%
+  summarise(
+    n_total       = n(),
+    n_significant = sum(sig),
+    n_nonsig      = sum(!sig)
+  ) %>%
+  arrange(desc(n_significant))
+
+kable(by_indicator_6c,
+      col.names = c("Indicator", "Total Comparisons", "Significant", "Non-Significant"),
+      caption   = "Count of significant and non-significant pairwise comparisons (BH-corrected, FDR < .05) by indicator.")
+```
+
+
+
+## Significant Comparisons by Predictors
+@tbl-sig-indicator-6pred: Total Significant Pairwise Comparisons by Predictors
+```{r}
+#| label: tbl-sig-indicator-6pred
+by_indicator_6pred <- pred_pairs %>%
+  group_by(covariate) %>%
+  summarise(
+    n_total       = n(),
+    n_significant = sum(sig),
+    n_nonsig      = sum(!sig)
+  ) %>%
+  arrange(desc(n_significant))
+
+kable(by_indicator_6pred,
+      col.names = c("Indicator", "Total Comparisons", "Significant", "Non-Significant"),
+      caption   = "Count of significant and non-significant pairwise comparisons (BH-corrected, FDR < .05) by Predictor")
+```

@@ -1,0 +1,6 @@
+"0","#| label: import"
+"0","#| echo: false"
+"0",""
+"0","sav_path <- ""C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Rachel M & Rina/Dissertation/Analysis/Study 1/LCAwASP_4CProbabilities.sav"""
+"0",""
+"0","sav_raw <- read_sav(sav_path)"

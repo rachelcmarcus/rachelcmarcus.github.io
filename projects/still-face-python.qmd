@@ -1,0 +1,577 @@
+---
+title: "Still Face Raw Import (Python)"
+date: "2026-09-04"
+engine: knitr
+---
+
+# What this file does
+
+This is a Python port of [Still Face Raw Import](still-face/6M_Still_Face_Raw_Import.qmd), built to run side by side with the R version as a demonstration of moving the same real analysis pipeline between R and Python.
+
+It reads the same raw per-subject event log exports (one Excel file per subject) and turns them into ONE wide dataset -- one row per subject, one column per scored variable -- following the exact same rules as the R version:
+
+1.  Read every subject's raw Excel event log.
+2.  Check each file for basic problems (wrong ID, unrecognized behavioral codes).
+3.  Find the Baseline / Still Face / Reunion episode boundaries for that subject (the "anchors").
+4.  Label every row with which episode it falls in.
+5.  Compute every duration/count/joint-attention variable, per episode.
+6.  Reshape each subject from long (one row per coded event) to wide (one row per subject).
+7.  Stack every subject into one dataset and check for duplicate IDs.
+
+**What this file does NOT do:** it does not save anything. In the source project the R version writes the merged dataset to SPSS for `6M_Still_Face_Compute.sps` to pick up; this portfolio page only demonstrates the pipeline and previews an aggregate summary of the result, consistent with the rest of this site.
+
+## Setup
+
+This page runs Python through R's `reticulate` package (via `engine: knitr` above) rather than a Jupyter kernel, so the only extra runtime dependency is a local Python 3 install with `pandas`, `numpy`, and `openpyxl`.
+
+```{r}
+#| label: setup
+#| include: false
+library(reticulate)
+use_python("C:/Users/rcm5550/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
+```
+
+```{python}
+#| label: imports
+import re
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+```
+
+## Before running: edit `PROJECT_ROOT`
+
+Same as the R version -- `PROJECT_ROOT` is the only line a new user should need to change. Every other path is built from it.
+
+```{python}
+#| label: file-paths
+# EDIT THIS LINE: point PROJECT_ROOT at your own "ff (cast.casbox )" Box folder.
+PROJECT_ROOT = Path("C:/Users/rcm5550/Box/ff (cast.casbox )")
+
+# Raw (non-consensus) event log files -- one ID-named subfolder per subject.
+PATH_EVENT_LOGS = PROJECT_ROOT / "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/General"
+
+# Consensus-coded event logs can live in EITHER of these two folders
+# (never both, for the same subject) -- also one ID-named subfolder per subject within each.
+PATH_EVENT_LOGS_RELIABILITY = PROJECT_ROOT / "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/Reliability"
+PATH_EVENT_LOGS_TRAINING = PROJECT_ROOT / "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/Training"
+```
+
+# 1. Reference tables
+
+Two lookup tables drive the rest of the script: which behaviors are just "divider" markers between episodes (and should be excluded from scoring), and which Subject/Behavior combinations are legitimate behavior codes.
+
+## Episode markers
+
+```{python}
+#| label: boundary-markers
+# One string per divider/marker behavior name, exactly as it appears in the
+# "Behavior" column of the raw export.
+EPISODE_MARKERS = [
+    "BASELINE 15 S REUNION NO COPE",
+    "15 S NO INFANT VOCAL",
+    "15 S NO FACIAL EXPRESSION",
+    "15 S STILL FACE NO AFFECT",
+    "15 S STILL FACE NO GAZE",
+    "15 S STILL FACE NO TALKING/TOUCHING",
+    "REUNION TRANSITION NO EXPRESSION",
+    "REUNION TRANSITION NO VOCAL",
+]
+```
+
+## Behavior reference table
+
+`BEHAVIOR_REFERENCE` lists every legitimate Subject/Behavior combination we expect to see in a raw file, exactly matching [the R version's table](still-face/6M_Still_Face_Raw_Import.qmd#sec-file-paths). Import stops if a file contains a Subject/Behavior pair that isn't in this table.
+
+```{python}
+#| label: behavior-reference
+BEHAVIOR_REFERENCE = pd.DataFrame(
+    [
+        # --- infant gaze: who the infant is looking at ---
+        ("Infant", "Looking at Mom",              "infant_gaze",       "yeslook"),
+        ("Infant", "Looking Away",                "infant_gaze",       "notlook"),
+        ("Infant", "Infant Gaze Not Visible",     "infant_gaze",       "gaze_nv"),
+        # --- infant facial expression ---
+        ("Infant", "Neutral Expression",          "infant_expression", "neuexp"),
+        ("Infant", "Smile/Positive Expression",   "infant_expression", "posexp"),
+        ("Infant", "Frown/Negative Expression",   "infant_expression", "negexp"),
+        ("Infant", "Infant Face Not Visible",     "infant_expression", "face_nv"),
+        # --- infant vocalization ---
+        ("Infant", "Infant Silent",               "infant_vocal",      "silvoc"),
+        ("Infant", "Neutral Vocal",                "infant_vocal",      "neuvoc"),
+        ("Infant", "Laughing/Positive Vocal",      "infant_vocal",      "posvoc"),
+        ("Infant", "Crying/Negative Vocal",        "infant_vocal",      "negvoc"),
+        # --- infant orientation (Still Face episode only) ---
+        ("Infant", "Object Orientation",           "infant_orientation", "obj"),
+        ("Infant", "Parent Orientation",            "infant_orientation", "par"),
+        # --- infant discrete self-soothing/escape actions (Still Face only) ---
+        ("Infant", "Infant Comforting",            "infant_action",     "comf"),
+        ("Infant", "Infant Escape",                 "infant_action",     "esc"),
+        # --- mother/parent affect ---
+        ("Mother", "High Negative Affect",          "mother_affect",     "negaffH"),
+        ("Mother", "Negative Affect",                "mother_affect",     "negaffL"),
+        ("Mother", "Neutral Affect",                 "mother_affect",     "neuaff"),
+        ("Mother", "Positive Affect",                "mother_affect",     "posaffL"),
+        ("Mother", "High Positive Affect",           "mother_affect",     "posaffH"),
+        ("Mother", "Mom Affect Not Visible",         "mother_affect",     "noaffect"),
+        # --- mother talking/touching the infant ---
+        ("Mother", "Mom Talking/Touching Infant",     "mother_talktouch",  "tlktch"),
+        ("Mother", "Mom NOT Talking/Touching Infant", "mother_talktouch",  "nottlktch"),
+    ],
+    columns=["Subject", "Behavior", "category", "var_stem"],
+)
+```
+
+# 2. Import one subject's raw event log
+
+This section builds the tools to read in a single subject's Excel file and catch problems immediately, before that file's data is scored.
+
+## Get the subject ID from a file name
+
+```{python}
+#| label: extract-id-function
+def extract_id_from_filename(filename: str) -> str:
+    """Every event log file name starts with the subject's numeric ID
+    (e.g. "111_SFF_SF6M_64 - Event Logs.xlsx" -> "111")."""
+    match = re.match(r"^\d+", Path(filename).name)
+    if match is None:
+        raise ValueError(f"Could not identify a subject ID from file: {Path(filename).name}")
+    return match.group(0)
+```
+
+## Import one subject's file and run basic checks
+
+```{python}
+#| label: import-function
+# Running log of blank/empty template rows found and dropped, across every
+# subject processed. Mirrors the R version's BLANK_ROW_LOG.
+BLANK_ROW_LOG: list[dict] = []
+
+
+def import_event_log(filename_full: Path) -> pd.DataFrame:
+    filename_short = filename_full.name
+    filename_id = extract_id_from_filename(filename_short)
+
+    data = pd.read_excel(filename_full)
+
+    # Identify blank template rows: no Behavior coded at all, and both the
+    # relative time and duration are exactly 0 -- these are empty leftover
+    # rows in the export, not real coded data.
+    blank_rows = data[
+        data["Behavior"].isna() & (data["Time_Relative_sf"] == 0) & (data["Duration_sf"] == 0)
+    ]
+    if len(blank_rows) > 0:
+        BLANK_ROW_LOG.append(
+            {"ID": filename_id, "file": filename_short, "n_blank_rows": len(blank_rows)}
+        )
+        data = data[
+            ~(data["Behavior"].isna() & (data["Time_Relative_sf"] == 0) & (data["Duration_sf"] == 0))
+        ]
+
+    # Time_Relative_hms comes in as an Excel time-of-day value. openpyxl
+    # hands these back as either a bare duration (timedelta64) or a full
+    # datetime with a fake date attached, depending on the cell's exact
+    # number format, so both need to be handled to land on plain
+    # "HH:MM:SS" text.
+    data = data.copy()
+    hms_col = data["Time_Relative_hms"]
+    if pd.api.types.is_timedelta64_dtype(hms_col):
+        total_seconds = hms_col.dt.total_seconds().astype(int)
+    else:
+        total_seconds = (
+            pd.to_datetime(hms_col).dt.hour * 3600
+            + pd.to_datetime(hms_col).dt.minute * 60
+            + pd.to_datetime(hms_col).dt.second
+        )
+    data["Time_Relative_hms"] = [
+        f"{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}" for s in total_seconds
+    ]
+
+    # Number every row in a new column called "Code". This is the
+    # event-order counter the rest of the script uses to find episode
+    # boundaries.
+    data = data.reset_index(drop=True)
+    data.insert(0, "Code", data.index + 1)
+    data["ID"] = data["Subject ID"].astype(str)
+
+    # Stop if the file contains more than one Subject ID.
+    internal_ids = data["ID"].unique()
+    if len(internal_ids) != 1:
+        raise ValueError(
+            f"File does not contain exactly one Subject ID: {filename_short}. "
+            f"Found: {', '.join(internal_ids)}"
+        )
+
+    # Stop if the ID inside the file doesn't match the ID in the file name.
+    if internal_ids[0] != filename_id:
+        raise ValueError(
+            f"File name ID ({filename_id}) does not match internal Subject ID "
+            f"({internal_ids[0]}) in file: {filename_short}"
+        )
+
+    # Pull out every Subject/Behavior combination in this file that ISN'T an
+    # episode marker, and compare against BEHAVIOR_REFERENCE.
+    observed = data.loc[~data["Behavior"].isin(EPISODE_MARKERS), ["Subject", "Behavior"]].drop_duplicates()
+    unmapped = observed.merge(
+        BEHAVIOR_REFERENCE[["Subject", "Behavior"]], on=["Subject", "Behavior"], how="left", indicator=True
+    ).query('_merge == "left_only"')
+
+    if len(unmapped) > 0:
+        pairs = "; ".join(f"{s}/{b}" for s, b in zip(unmapped["Subject"], unmapped["Behavior"]))
+        raise ValueError(
+            f"Unrecognized Subject/Behavior combination(s) in file {filename_short}: {pairs}. "
+            "Add to BEHAVIOR_REFERENCE or fix the coding before re-running."
+        )
+
+    return data
+```
+
+# 3. Episode anchors
+
+"Anchors" are the `Code` numbers marking where each episode (Baseline, Still Face, Reunion) starts and ends for one subject. Everything after this depends on these episode boundaries being found correctly, so this function stops immediately if a marker is missing or the anchors come out of order.
+
+```{python}
+#| label: episode-anchor-function
+def get_episode_anchors(data: pd.DataFrame) -> dict:
+    subject_id = data["ID"].iloc[0]
+
+    bl_start = data["Code"].min()
+    reunion_end = data["Code"].max()
+
+    def first_code(behavior: str, event_type: str) -> int:
+        rows = data.loc[(data["Behavior"] == behavior) & (data["Event_Type"] == event_type), "Code"]
+        if len(rows) == 0:
+            raise ValueError(
+                f"Could not find both a start and a stop for '{behavior}' marker for ID: {subject_id}"
+            )
+        return int(rows.iloc[0])
+
+    # Baseline ends where "15 S NO INFANT VOCAL" starts; Still Face doesn't
+    # begin until that marker stops. The gap in between (a real "do not
+    # code" window) is correctly left unclassified (episode = NA) later on.
+    bl_end = first_code("15 S NO INFANT VOCAL", "State start")
+    sf_start = first_code("15 S NO INFANT VOCAL", "State stop")
+
+    # Same start/stop logic for the still-face-to-reunion transition buffer.
+    sf_end = first_code("REUNION TRANSITION NO EXPRESSION", "State start")
+    reunion_start = first_code("REUNION TRANSITION NO EXPRESSION", "State stop")
+
+    anchors = {
+        "ID": subject_id,
+        "bl_start": bl_start, "bl_end": bl_end,
+        "sf_start": sf_start, "sf_end": sf_end,
+        "reunion_start": reunion_start, "reunion_end": reunion_end,
+    }
+
+    sequence = [bl_start, bl_end, sf_start, sf_end, reunion_start, reunion_end]
+    if sequence != sorted(sequence):
+        raise ValueError(f"Episode anchors are not in increasing order for ID: {subject_id}")
+
+    return anchors
+```
+
+# 4. Label every row with its episode
+
+`episode` records which episode each row belongs to: `1` = Baseline, `2` = Still Face, `3` = Reunion. Rows that fall in the transition buffers between episodes (including the boundary marker rows themselves) come out as `NA` here -- that's correct, not a bug.
+
+```{python}
+#| label: episode-function
+def assign_episode(data: pd.DataFrame, anchors: dict) -> pd.DataFrame:
+    data = data.copy()
+    conditions = [
+        data["Code"].between(anchors["bl_start"], anchors["bl_end"]),
+        data["Code"].between(anchors["sf_start"], anchors["sf_end"]),
+        data["Code"].between(anchors["reunion_start"], anchors["reunion_end"]),
+    ]
+    data["episode"] = np.select(conditions, [1, 2, 3], default=np.nan)
+    return data
+```
+
+# 5. Put it together: import + anchor + label one subject
+
+```{python}
+#| label: label-raw-function
+def import_and_label_one_subject(filename_full: Path) -> pd.DataFrame:
+    data = import_event_log(filename_full)
+    anchors = get_episode_anchors(data)
+    data = assign_episode(data, anchors)
+    return data[
+        ["ID", "Code", "Subject", "Behavior", "Event_Type", "Time_Relative_sf", "Time_Relative_hms", "Duration_sf", "episode"]
+    ]
+```
+
+# 6. Scoring building blocks
+
+These four small functions are the "verbs" that every score in the final dataset is built from: total duration of a behavior, count of a behavior, overlap between two behaviors (for joint attention), and a check for whether an episode had any real coding at all.
+
+```{python}
+#| label: duration-function
+def compute_duration(data: pd.DataFrame, subj: str, behavior: str, episode_num: int) -> float:
+    rows = data[
+        (data["Subject"] == subj) & (data["Behavior"] == behavior)
+        & (data["Event_Type"] == "State start") & (data["episode"] == episode_num)
+    ]
+    return rows["Duration_sf"].sum()
+```
+
+```{python}
+#| label: count-function
+def compute_count(data: pd.DataFrame, subj: str, behavior: str, episode_num: int) -> int:
+    rows = data[
+        (data["Subject"] == subj) & (data["Behavior"] == behavior)
+        & (data["Event_Type"] == "State start") & (data["episode"] == episode_num)
+    ]
+    return len(rows)
+```
+
+```{python}
+#| label: overlap-function
+def compute_overlap_duration(data: pd.DataFrame, subject_a: str, behavior_a: str, subject_b: str, behavior_b: str, episode_num: int) -> float:
+    a = data[(data["Subject"] == subject_a) & (data["Behavior"] == behavior_a)
+             & (data["Event_Type"] == "State start") & (data["episode"] == episode_num)]
+    b = data[(data["Subject"] == subject_b) & (data["Behavior"] == behavior_b)
+             & (data["Event_Type"] == "State start") & (data["episode"] == episode_num)]
+
+    if len(a) == 0 or len(b) == 0:
+        return 0.0
+
+    a_start = a["Time_Relative_sf"].to_numpy()
+    a_end = a_start + a["Duration_sf"].to_numpy()
+    b_start = b["Time_Relative_sf"].to_numpy()
+    b_end = b_start + b["Duration_sf"].to_numpy()
+
+    # Cross every interval of A against every interval of B, then take the
+    # later of the two starts to the earlier of the two ends, floored at 0.
+    overlap = np.maximum(
+        0,
+        np.minimum(a_end[:, None], b_end[None, :]) - np.maximum(a_start[:, None], b_start[None, :]),
+    )
+    return float(overlap.sum())
+```
+
+```{python}
+#| label: episode-has-codes-function
+def episode_has_codes(data: pd.DataFrame, episode_num: int) -> bool:
+    return len(data[(data["episode"] == episode_num) & (~data["Behavior"].isin(EPISODE_MARKERS))]) > 0
+```
+
+```{python}
+#| label: blank-uncoded-episodes-function
+# Lookup: episode number -> the variable-name prefix used for that episode.
+EPISODE_PREFIX = {1: "v2sfbl", 2: "v2sfsf", 3: "v2sfre"}
+
+
+def blank_uncoded_episodes(scores: dict, data: pd.DataFrame) -> dict:
+    for episode_num in (1, 2, 3):
+        if not episode_has_codes(data, episode_num):
+            prefix = EPISODE_PREFIX[episode_num]
+            for key in list(scores):
+                if key.startswith(prefix):
+                    scores[key] = np.nan
+    return scores
+```
+
+# 7. Score spec: one row per duration/count variable
+
+`SCORE_SPEC` is the master list that drives the long-to-wide reshape below, matching [the R version's table](still-face/6M_Still_Face_Raw_Import.qmd#sec-file-paths) variable-for-variable. Each row means: "final variable name = subject's behavior, in this episode, as this metric (duration or count)."
+
+```{python}
+#| label: score-spec
+SCORE_SPEC = pd.DataFrame(
+    [
+        # --- infant vocal: baseline / still face / reunion ---
+        ("v2sfblnegvoc", "Infant", "Crying/Negative Vocal", 1, "duration"),
+        ("v2sfsfnegvoc", "Infant", "Crying/Negative Vocal", 2, "duration"),
+        ("v2sfrenegvoc", "Infant", "Crying/Negative Vocal", 3, "duration"),
+        ("v2sfblneuvoc", "Infant", "Neutral Vocal", 1, "duration"),
+        ("v2sfsfneuvoc", "Infant", "Neutral Vocal", 2, "duration"),
+        ("v2sfreneuvoc", "Infant", "Neutral Vocal", 3, "duration"),
+        ("v2sfblposvoc", "Infant", "Laughing/Positive Vocal", 1, "duration"),
+        ("v2sfsfposvoc", "Infant", "Laughing/Positive Vocal", 2, "duration"),
+        ("v2sfreposvoc", "Infant", "Laughing/Positive Vocal", 3, "duration"),
+        ("v2sfblsilvoc", "Infant", "Infant Silent", 1, "duration"),
+        ("v2sfsfsilvoc", "Infant", "Infant Silent", 2, "duration"),
+        ("v2sfresilvoc", "Infant", "Infant Silent", 3, "duration"),
+        # --- infant expression: baseline / still face / reunion ---
+        ("v2sfblnegexp", "Infant", "Frown/Negative Expression", 1, "duration"),
+        ("v2sfsfnegexp", "Infant", "Frown/Negative Expression", 2, "duration"),
+        ("v2sfrenegexp", "Infant", "Frown/Negative Expression", 3, "duration"),
+        ("v2sfblneuexp", "Infant", "Neutral Expression", 1, "duration"),
+        ("v2sfsfneuexp", "Infant", "Neutral Expression", 2, "duration"),
+        ("v2sfreneuexp", "Infant", "Neutral Expression", 3, "duration"),
+        ("v2sfblposexp", "Infant", "Smile/Positive Expression", 1, "duration"),
+        ("v2sfsfposexp", "Infant", "Smile/Positive Expression", 2, "duration"),
+        ("v2sfreposexp", "Infant", "Smile/Positive Expression", 3, "duration"),
+        # --- infant gaze: baseline / reunion only (blank at still face) ---
+        ("v2sfblyeslook", "Infant", "Looking at Mom", 1, "duration"),
+        ("v2sfreyeslook", "Infant", "Looking at Mom", 3, "duration"),
+        ("v2sfblnotlook", "Infant", "Looking Away", 1, "duration"),
+        ("v2sfrenotlook", "Infant", "Looking Away", 3, "duration"),
+        # --- infant orientation: still face only ---
+        ("v2sfsfobj", "Infant", "Object Orientation", 2, "duration"),
+        ("v2sfsfpar", "Infant", "Parent Orientation", 2, "duration"),
+        # --- infant discrete actions: still face only ---
+        ("v2sfsfcomf", "Infant", "Infant Comforting", 2, "duration"),
+        ("v2sfsfesc", "Infant", "Infant Escape", 2, "duration"),
+        ("v2sfsfcomfcount", "Infant", "Infant Comforting", 2, "count"),
+        ("v2sfsfesccount", "Infant", "Infant Escape", 2, "count"),
+        # --- mom affect: baseline / reunion only (blank at still face) ---
+        ("v2sfblnegaffH", "Mother", "High Negative Affect", 1, "duration"),
+        ("v2sfrenegaffH", "Mother", "High Negative Affect", 3, "duration"),
+        ("v2sfblnegaffL", "Mother", "Negative Affect", 1, "duration"),
+        ("v2sfrenegaffL", "Mother", "Negative Affect", 3, "duration"),
+        ("v2sfblneuaff", "Mother", "Neutral Affect", 1, "duration"),
+        ("v2sfreneuaff", "Mother", "Neutral Affect", 3, "duration"),
+        ("v2sfblposaffL", "Mother", "Positive Affect", 1, "duration"),
+        ("v2sfreposaffL", "Mother", "Positive Affect", 3, "duration"),
+        ("v2sfblposaffH", "Mother", "High Positive Affect", 1, "duration"),
+        ("v2sfreposaffH", "Mother", "High Positive Affect", 3, "duration"),
+        # --- mom talk/touch: baseline / reunion only ---
+        ("v2sfbltlktch", "Mother", "Mom Talking/Touching Infant", 1, "duration"),
+        ("v2sfretlktch", "Mother", "Mom Talking/Touching Infant", 3, "duration"),
+        ("v2sfblnotlktch", "Mother", "Mom NOT Talking/Touching Infant", 1, "duration"),
+        ("v2sfrenotlktch", "Mother", "Mom NOT Talking/Touching Infant", 3, "duration"),
+    ],
+    columns=["var_name", "subject", "behavior", "episode", "metric"],
+)
+```
+
+# 8. Reshape one subject to wide, and add joint attention
+
+Joint attention (`jntatn`) isn't in `SCORE_SPEC` because it needs two behaviors overlapping at once, not a single duration/count -- so it's computed separately and added on afterward, same as the R version.
+
+```{python}
+#| label: compute-spec-values
+def compute_spec_values_one_subject(data: pd.DataFrame) -> dict:
+    values = {}
+    for row in SCORE_SPEC.itertuples(index=False):
+        if row.metric == "duration":
+            values[row.var_name] = compute_duration(data, row.subject, row.behavior, row.episode)
+        else:
+            values[row.var_name] = compute_count(data, row.subject, row.behavior, row.episode)
+    return values
+```
+
+```{python}
+#| label: episode-boundary-times-function
+EPISODE_INFO = [
+    (1, "v2sfbl", "bl_start", "bl_end"),
+    (2, "v2sfsf", "sf_start", "sf_end"),
+    (3, "v2sfre", "reunion_start", "reunion_end"),
+]
+
+
+def add_episode_boundary_times(scores: dict, data: pd.DataFrame, anchors: dict) -> dict:
+    for episode_num, prefix, start_col, end_col in EPISODE_INFO:
+        start_code = anchors[start_col]
+        end_code = anchors[end_col]
+
+        start_hms = data.loc[data["Code"] == start_code, "Time_Relative_hms"].iloc[0]
+        end_hms = data.loc[data["Code"] == end_code, "Time_Relative_hms"].iloc[0]
+        start_sec = data.loc[data["Code"] == start_code, "Time_Relative_sf"].iloc[0]
+        end_sec = data.loc[data["Code"] == end_code, "Time_Relative_sf"].iloc[0]
+
+        # Blank the boundary times only when the episode is truly empty:
+        # start and end land on the exact same moment AND no real behavior
+        # was coded anywhere in the episode.
+        if start_sec == end_sec and not episode_has_codes(data, episode_num):
+            start_hms = end_hms = np.nan
+            start_sec = end_sec = np.nan
+
+        scores[f"{prefix}epistarthms"] = start_hms
+        scores[f"{prefix}epiendhms"] = end_hms
+        scores[f"{prefix}epistart"] = start_sec
+        scores[f"{prefix}epiend"] = end_sec
+        scores[f"{prefix}epi"] = end_sec - start_sec if pd.notna(end_sec) and pd.notna(start_sec) else np.nan
+
+    return scores
+
+
+def compute_raw_scores_one_subject(data: pd.DataFrame) -> dict:
+    subject_id = data["ID"].iloc[0]
+    scores = {"ID": subject_id, **compute_spec_values_one_subject(data)}
+
+    # Joint attention: seconds where mom is talking/touching AND the infant
+    # is looking at her, at the same time. Baseline and Reunion only.
+    scores["v2sfbljntatn"] = compute_overlap_duration(
+        data, "Mother", "Mom Talking/Touching Infant", "Infant", "Looking at Mom", 1
+    )
+    scores["v2sfrejntatn"] = compute_overlap_duration(
+        data, "Mother", "Mom Talking/Touching Infant", "Infant", "Looking at Mom", 3
+    )
+
+    scores = blank_uncoded_episodes(scores, data)
+
+    anchors = get_episode_anchors(data)
+    scores = add_episode_boundary_times(scores, data, anchors)
+
+    return scores
+```
+
+# 9. Validate the merged raw dataset
+
+```{python}
+#| label: validate-function
+def validate_raw_dataset(dataset: pd.DataFrame) -> None:
+    duplicate_ids = dataset["ID"].value_counts()
+    duplicate_ids = duplicate_ids[duplicate_ids > 1]
+    if len(duplicate_ids) > 0:
+        raise ValueError(f"Raw dataset contains duplicate IDs: {', '.join(duplicate_ids.index)}")
+    print("Still Face raw: duplicate ID check passed.")
+```
+
+# 10. Run it: import, score, and merge every subject
+
+```{python}
+#| label: find-files
+def find_event_logs(path: Path) -> list[Path]:
+    if not path.exists():
+        return []
+    return sorted(path.glob("**/*Event*Logs*.xlsx"))
+
+
+files_original = find_event_logs(PATH_EVENT_LOGS)
+files_reliability = find_event_logs(PATH_EVENT_LOGS_RELIABILITY)
+files_training = find_event_logs(PATH_EVENT_LOGS_TRAINING)
+
+# For every ID, prefer a consensus file (Reliability, then Training) over
+# the original, same rule as the R version.
+file_lookup: dict[str, Path] = {extract_id_from_filename(f.name): f for f in files_original}
+for f in files_reliability + files_training:
+    file_lookup[extract_id_from_filename(f.name)] = f
+
+files_final = sorted(file_lookup.values())
+```
+
+```{python}
+#| label: process-all-subjects
+SF_RAW = pd.DataFrame(
+    [compute_raw_scores_one_subject(import_and_label_one_subject(f)) for f in files_final]
+)
+
+validate_raw_dataset(SF_RAW)
+```
+
+```{python}
+#| label: show-blank-rows
+#| echo: false
+# Preview the blank-row log, same as the R version -- this page does not
+# write a copy of it to disk.
+BLANK_ROW_LOG_DF = pd.DataFrame(BLANK_ROW_LOG)
+if len(BLANK_ROW_LOG_DF) > 0:
+    BLANK_ROW_LOG_DF
+else:
+    print("No blank rows found in this run.")
+```
+
+# 11. Final review
+
+In the source project, `SF_RAW` is ready to be saved for `6M_Still_Face_Compute.sps` to read back in. This portfolio page does not write that file, and -- consistent with the R version -- does not preview real per-subject rows on the public site, only an aggregate summary.
+
+```{python}
+#| label: final-review
+pd.DataFrame(
+    {"n_subjects": [SF_RAW["ID"].nunique()], "n_variables": [SF_RAW.shape[1] - 1]}
+)
+```

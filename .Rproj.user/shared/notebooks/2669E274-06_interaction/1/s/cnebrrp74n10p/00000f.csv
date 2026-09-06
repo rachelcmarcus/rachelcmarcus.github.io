@@ -1,0 +1,6 @@
+"0","#| label: import"
+"0","#| echo: false"
+"0","c1_params_raw <- read_excel(data_path, sheet = ""interaction parameters (c1)"")"
+"0","c3_params_raw <- read_excel(data_path, sheet = ""interaction parameters (c3)"")"
+"0","c1_pairs_raw  <- read_excel(data_path, sheet = ""int paired comparisons (c1)"")"
+"0","c3_pairs_raw  <- read_excel(data_path, sheet = ""int paired comparisons (c3)"")"

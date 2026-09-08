@@ -1,29 +1,5 @@
 ---
 title: "SPR Cup Analysis"
-author: "Rachel C. Marcus"
-date: today
-format:
-  html:
-    toc: true
-    toc-depth: 3
-    toc-location: left
-    theme: flatly
-    code-fold: true
-    code-tools: true
-    code-summary: "Show code"
-    embed-resources: true
-    fig-width: 8
-    fig-height: 5
-  
-  docx:
-    toc: true
-    toc-depth: 3
-    fig-width: 8
-    fig-height: 5
-execute:
-  warning: false
-  message: false
-  echo: fenced
 ---
 
 # Set Up

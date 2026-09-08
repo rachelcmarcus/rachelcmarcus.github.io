@@ -928,7 +928,7 @@
     "href": "index.html",
     "title": "Portfolio Overview",
     "section": "",
-    "text": "This site collects a selection of applied research projects from my doctoral training in developmental psychology at Penn State, spanning statistical modeling, longitudinal data processing, and observational coding pipelines. Each project page includes the full analysis code alongside the rendered output, so the reasoning behind each step is visible, not just the final result.\nCode chunks are shown by default and can be collapsed using the toggle above each one. Where source data could not be included due to data use agreements or IRB restrictions, that is noted directly on the project page.",
+    "text": "This site collects a selection of applied research projects from my doctoral training in developmental psychology at Penn State, spanning statistical modeling, longitudinal data processing, and observational coding pipelines. Each project page includes the full analysis code alongside the rendered output, so the reasoning behind each step is visible, not just the final result.\nCode chunks are shown by default and can be collapsed using the toggle above each one, or using the page-wide toggle on the top right. The code and commits are hosted on my Github, which can be found here: https://github.com/rachelcmarcus/rachelcmarcus.github.io.",
     "crumbs": [
       "Overview"
     ]
@@ -938,7 +938,7 @@
     "href": "index.html#about-this-portfolio",
     "title": "Portfolio Overview",
     "section": "",
-    "text": "This site collects a selection of applied research projects from my doctoral training in developmental psychology at Penn State, spanning statistical modeling, longitudinal data processing, and observational coding pipelines. Each project page includes the full analysis code alongside the rendered output, so the reasoning behind each step is visible, not just the final result.\nCode chunks are shown by default and can be collapsed using the toggle above each one. Where source data could not be included due to data use agreements or IRB restrictions, that is noted directly on the project page.",
+    "text": "This site collects a selection of applied research projects from my doctoral training in developmental psychology at Penn State, spanning statistical modeling, longitudinal data processing, and observational coding pipelines. Each project page includes the full analysis code alongside the rendered output, so the reasoning behind each step is visible, not just the final result.\nCode chunks are shown by default and can be collapsed using the toggle above each one, or using the page-wide toggle on the top right. The code and commits are hosted on my Github, which can be found here: https://github.com/rachelcmarcus/rachelcmarcus.github.io.",
     "crumbs": [
       "Overview"
     ]

@@ -1,7 +1,0 @@
-"0","#| label: show-blank-rows"
-"0","# Show the blank-row log in the knitted output"
-"0","if (nrow(BLANK_ROW_LOG) > 0) {"
-"0","  knitr::kable(BLANK_ROW_LOG, caption = ""Subjects with Blank Rows Dropped"")"
-"0","} else {"
-"0","  message(""No blank rows found in this run."")"
-"0","}"

@@ -1,3 +1,0 @@
-"0","#| label: panel-standardized-neg"
-"0","#| echo: false"
-"0","print(p_zneg)  "

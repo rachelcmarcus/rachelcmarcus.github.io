@@ -1,6 +1,0 @@
-"0","#| label: load data"
-"0","#| echo: false"
-"0","library(haven)"
-"0","dat <- read_sav(""C:\Users\rcm5550\OneDrive - The Pennsylvania State University\SPR Cup 2026\Analysis\AddHealth_AllData.sav"")"
-"2","Error: '\U' used without hex digits in character string (<input>:1:21)
-"

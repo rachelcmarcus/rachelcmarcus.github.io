@@ -1,6 +1,0 @@
-"0","#| label: libraries"
-"0",""
-"0","# Core data-wrangling verbs (filter, mutate, pivot_wider, the pipe, etc)"
-"0","library(tidyverse)"
-"0","# Reads .xlsx files -- needed for the raw event log export"
-"0","library(readxl)"

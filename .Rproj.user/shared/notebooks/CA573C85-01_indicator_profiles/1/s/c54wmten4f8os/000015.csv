@@ -1,6 +1,0 @@
-"0",""
-"0","ggsave("
-"0","  filename = file.path(fig_indicator, ""profile_figures_combined.png""),"
-"0","  plot     = combined,"
-"0","  width    = 40, height = 6, dpi = fig_dpi, units = ""in"""
-"0",")"

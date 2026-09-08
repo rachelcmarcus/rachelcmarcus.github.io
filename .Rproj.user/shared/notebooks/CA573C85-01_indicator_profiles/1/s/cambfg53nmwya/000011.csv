@@ -1,4 +1,0 @@
-"0","#| label: import"
-"0","#| echo: false"
-"0","profile_raw <- read_excel(data_path, sheet = ""profile R"")"
-"0","pairs_raw   <- read_excel(data_path, sheet = ""paired comparisons"")"

@@ -1,5 +1,0 @@
-"0",""
-"0","ggsave(file.path(fig_predictor, ""Predictor_Profile_Standardized.png""),"
-"0","       plot = p_profile, width = 13, height = 6.5,"
-"0","       dpi = fig_dpi, units = ""in"","
-"0","       bg = ""transparent"")"

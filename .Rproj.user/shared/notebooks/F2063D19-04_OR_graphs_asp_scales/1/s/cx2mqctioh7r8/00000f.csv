@@ -1,6 +1,0 @@
-"0","#| label: import"
-"0","#| echo: false"
-"0","c1_params_asp <- read_excel(data_path, sheet = ""asp scale parameters"")"
-"0","c3_params_asp <- read_excel(data_path, sheet = ""asp scale parameters C3"")"
-"0","c1_pairs_asp <- read_excel(data_path, sheet = ""asp paired C1"")"
-"0","c3_pairs_asp  <- read_excel(data_path, sheet = ""asp paired C3"")"

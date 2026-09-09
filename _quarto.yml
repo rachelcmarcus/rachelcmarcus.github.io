@@ -39,24 +39,12 @@ website:
 
           - section: "Add Health: Profiles & Predictors"
             contents:
-              - text: "Indicator Profiles"
-                href: projects/add-health/01_indicator_profiles.qmd
-              - text: "Indicator Profiles (Z-Score)"
-                href: projects/add-health/01a_indicator_profiles_zscore.qmd
-              - text: "Predictor Profiles"
-                href: projects/add-health/02_predictor_profiles.qmd
-              - text: "Odds Ratio Graphs"
-                href: projects/add-health/03_OR_graphs.qmd
-              - text: "OR Graphs (ASP Scales)"
-                href: projects/add-health/04_OR_graphs_asp_scales.qmd
-              - text: "Scales Profiles"
-                href: projects/add-health/05_scales_profiles.qmd
-              - text: "Interaction"
-                href: projects/add-health/06_interaction.qmd
-              - text: "OR Graphs (Line)"
-                href: projects/add-health/07_OR_graphsline.qmd
-              - text: "BCH Analysis"
-                href: projects/add-health/08_BCH.qmd
+              - text: "Profiles"
+                href: projects/add-health/Profiles.qmd
+              - text: "Odds Ratios"
+                href: projects/add-health/Odds-Ratios.qmd
+              - text: "Interaction & Comparisons"
+                href: projects/add-health/Interaction-and-Comparisons.qmd
   page-footer:
     left: "© 2026 Rachel Marcus"
     right:
@@ -75,7 +63,7 @@ format:
     toc-title: "On this page"
     code-fold: show
     code-tools: true
-    code-summary: "Show code"
+    code-summary: "code"
     embed-resources: true
     smooth-scroll: true
     linkcolor: "#2c3e50"

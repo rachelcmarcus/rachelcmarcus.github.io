@@ -1,0 +1,1864 @@
+---
+title: "Odds Ratios: Predictors & ASP Scales"
+toc: true
+toc-depth: 3
+code-fold: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+source("_setup.R")
+library(gt)      # used for the data-view tables added in this consolidation
+```
+
+# Overview
+
+This page tests whether the demographic, parenting, and peer predictors described on [Profiles](Profiles.qmd) actually distinguish class membership, using posterior-probability-weighted multinomial logistic regression via the BCH three-step method to correctly account for measurement error in profile assignment (Bolck et al., 2004), with all continuous predictors standardized prior to analysis. Benjamini-Hochberg correction is then applied in R to the resulting pairwise comparisons (Benjamini & Hochberg, 1995, 2000). Predictor odds ratios (bar and line versions) are shown first, followed by the ASP-subscale-level breakdown.
+
+# Helper Functions
+
+Both `tidy_params()` and `apply_bh()`/`apply_bh_cap()` were previously defined separately in each of the three original files (`03_OR_graphs.qmd`, `04_OR_graphs_asp_scales.qmd`, `07_OR_graphsline.qmd`) — identically or near-identically each time. Defined once here, they're reused by every section below. Two BH-correction variants are kept (not one) because the underlying Excel sheets genuinely use two different column-naming conventions: the predictor-pairs sheet uses lowercase `covariate`/`cluster_a`/`cluster_b`, while the ASP, interaction, and indicator-pairs sheets all use `Covariate`/`clustera`/`clusterb`. `apply_bh_cap()` is also reused later on the [Interaction & Comparisons](Interaction-and-Comparisons.qmd) page, since those sheets share the same capitalized convention.
+
+```{r}
+#| label: helper-tidy-params
+
+# Shared by every OR section below. Position-based renaming (first column ->
+# predictor_var) means it works regardless of whether the source sheet calls
+# that column "Covariates" or "Covariate" -- this one was already robust to
+# the casing differences across sheets.
+#
+# NOTE: this function reads `pred_labels` from the calling environment rather
+# than taking it as an argument. Each section below defines its own
+# `pred_labels` immediately before calling tidy_params(), so the mapping used
+# is always whichever one was assigned most recently -- correct as long as
+# sections run top-to-bottom in this order and nothing downstream re-calls
+# tidy_params() after a later section has overwritten pred_labels.
+tidy_params <- function(raw, cluster_cols) {
+  raw %>%
+    rename_with(~ "predictor_var", 1) %>%
+    rename(omnibus_p = `p-value`) %>%
+    pivot_longer(
+      cols      = all_of(cluster_cols),
+      names_to  = "cluster_raw",
+      values_to = "log_odds"
+    ) %>%
+    mutate(
+      predictor_label = recode(predictor_var, !!!pred_labels),
+      log_odds        = as.numeric(log_odds),
+      cluster         = recode(cluster_raw,
+                          "Cluster1" = "C1", "Cluster2" = "C2",
+                          "Cluster3" = "C3", "Cluster4" = "C4"),
+      cluster         = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
+      OR              = exp(log_odds)
+    ) %>%
+    select(predictor_label, predictor_var, cluster, log_odds, OR, omnibus_p)
+}
+```
+
+```{r}
+#| label: helper-apply-bh
+
+# For sheets with lowercase covariate/cluster_a/cluster_b (predictors paired comparisons).
+apply_bh <- function(raw) {
+  raw %>%
+    rename(predictor = covariate, p_value = `p-value`) %>%
+    filter(predictor != "Intercept") %>%
+    mutate(
+      p_value = as.numeric(p_value),
+      p_adj   = p.adjust(p_value, method = "BH"),
+      sig     = p_adj < .05
+    )
+}
+
+# For sheets with capitalized Covariate/clustera/clusterb (ASP, interaction,
+# indicator-pairs). Reused on the Interaction & Comparisons page too.
+apply_bh_cap <- function(raw) {
+  raw %>%
+    rename(predictor = Covariate, p_value = `p-value`) %>%
+    filter(predictor != "Intercept") %>%
+    mutate(
+      p_value = as.numeric(p_value),
+      p_adj   = p.adjust(p_value, method = "BH"),
+      sig     = p_adj < .05
+    )
+}
+```
+
+# 1. Predictor Odds Ratios
+
+## Data Import
+
+Odds-ratio parameters and paired comparisons for each predictor, referenced against Class 1 and Class 3 respectively, are read in from the project's Excel results workbook. Import code is included but not rendered below.
+
+::: {.callout-note}
+The code for this section is collapsed by default, but can be expanded individually for each section or all together with the toggle on the upper right.
+:::
+
+```{r}
+#| label: import-predictor-or
+#| echo: false
+c1_params_raw <- read_excel(data_path, sheet = "c1 as reference parameters")
+c3_params_raw <- read_excel(data_path, sheet = "c3 as reference parameters")
+c1_pairs_raw  <- read_excel(data_path, sheet = "predictors paired comparisons")
+c3_pairs_raw  <- read_excel(data_path, sheet = "predictors paired (C3) ")
+```
+
+```{r}
+#| label: data-view-or-raw
+gt(head(c1_params_raw, 5)) |> tab_header(title = "c1 as reference parameters")
+gt(head(c1_pairs_raw, 5)) |> tab_header(title = "predictors paired comparisons")
+```
+
+
+## Wrangle Parameter Sheets
+
+```{r}
+#| label: wrangle-params-predictor-or
+pred_labels <- c(
+  "female"       = "Sex (Male = 0)",
+  "Zwave1age"    = "Age",
+  "Zpeer_subuse" = "Peer Substance Use",
+  "pub_timing"   = "Pubertal Timing",
+  "Zasp"         = "ASP"
+)
+
+c1_params <- tidy_params(c1_params_raw, c("Cluster1", "Cluster2", "Cluster3", "Cluster4"))
+c3_params <- tidy_params(c3_params_raw, c("Cluster3", "Cluster4", "Cluster1", "Cluster2"))
+```
+
+## BH Correction on Pairwise Comparisons
+
+```{r}
+#| label: bh-pairs-predictor-or
+c1_pairs <- apply_bh(c1_pairs_raw)
+
+```{r}
+#| label: data-view-or-tidy
+gt(head(c1_params, 6)) |> tab_header(title = "After: tidy_params() output")
+gt(head(c1_pairs, 6))  |> tab_header(title = "After: apply_bh() output")
+```
+
+Odds ratios test whether each predictor distinguishes class membership, computed twice — once with C1 (High PR-Low NR) as the reference class, once with C3 (Low PR-High NR) — so both alcohol-problem-status groupings can anchor the comparison. An OR above 1 means higher odds of membership in the comparison class relative to the reference, for a one-unit (or one-SD, for standardized predictors) increase in that predictor.
+
+**Autonomy-Supportive Parenting.** As ASP increases, the odds of being in any other profile compared to C1 (High PR–Low NR) significantly decrease. Compared to C3 (Low PR–High NR), as ASP increases the odds of being in either of the two zero-alcohol-problem profiles (C1, C2) decrease; C2 vs. C3 and C2 vs. C4 were also significant. This is consistent with self-determination theory (Deci & Ryan, 2013; Ryan & Deci, 2022): autonomy-supportive parenting predicted profile membership even within the two no-alcohol-problem profiles, which a variable-centered approach combining them would have obscured (Bergman & Magnusson, 1997).
+
+**Sex.** As the proportion of females in a profile increases, compared to C1 the odds of being in C2 or C3 significantly decrease; compared to C3, the odds of being in C1 or C4 increase (C2 vs. C4 and C3 vs. C4 also significant) — consistent with prior findings of higher male delinquency rates (Miller et al., 2010).
+
+**Age.** As age increases, the odds of being in any profile compared to C1 increase significantly; compared to C3, the odds of being in either zero-alcohol-problem profile decrease (C2 vs. C3 and C2 vs. C4 also significant) — consistent with developmental increases in negative risk-taking across adolescence (Duell et al., 2018; Moffitt, 2017).
+
+**Peer Substance Use.** As peer substance use increases, the odds of being in any profile compared to C1 increase significantly; compared to C3, the odds of being in either zero-alcohol-problem profile or C4 decrease (all six pairwise comparisons significant — the only predictor with every comparison reaching significance), matching literature identifying peer behavior as a robust proximal predictor of adolescent risk (Dishion et al., 1999; Dishion & Tipsord, 2011; Henneberger et al., 2021).
+
+**Pubertal Timing.** As pubertal timing gets earlier, the odds of being in C2 decrease compared to C1, while the odds of being in either alcohol-problem profile increase compared to C1; compared to C3, the odds of being in either zero-alcohol-problem profile decrease (C2 vs. C3 and C2 vs. C4 also significant) — reinforcing that biological maturation shapes risk propensity above and beyond chronological age (Natsuaki et al., 2009).
+
+## Figures: C1 as Reference Group
+
+### Figure: Sex - C1 Reference
+
+```{r}
+#| label: fig-c1-sex
+
+c1_sex <- c1_params %>% filter(predictor_var == "female")
+
+ref_sig <- c1_pairs %>%
+  filter(predictor == "bio_sexD",
+         cluster_a == 1 | cluster_b == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 1, cluster_b, cluster_a)) %>%
+  pull(other)                          # cluster numbers sig different from C1
+
+other_sig <- c1_pairs %>%
+  filter(predictor == "bio_sexD",
+         cluster_a != 1, cluster_b != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c1_sex <- c1_sex %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Sex (Female vs. Male)"
+x_label      <- "Reference: C1"
+y_label      <- "Odds Ratio - C1 as Reference"    
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p_c1_sex <- ggplot(c1_sex, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)),
+                    axis.title.x = element_blank() ,
+                   axis.text.x = element_text(size = 32),
+                   axis.title = element_text(size = 40),
+                  axis.title.y = element_blank() )
+
+
+ggsave(file.path(fig_or_c1, "bio_sexD_OR_C1ref.png"),
+       plot = p_c1_sex, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+### Figure: Age - C1 Reference
+
+```{r}
+#| label: fig-c1-age
+
+c1_age <- c1_params %>% filter(predictor_var == "Zwave1age")
+
+ref_sig <- c1_pairs %>%
+  filter(predictor == "Zwave1age",
+         cluster_a == 1 | cluster_b == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 1, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c1_pairs %>%
+  filter(predictor == "Zwave1age",
+         cluster_a != 1, cluster_b != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c1_age <- c1_age %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Age"
+x_label     <- "Reference: C1"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+               }
+p_c1_age <- ggplot(c1_age, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)), 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                 axis.text.x = element_text(size = 32),
+                   axis.title = element_text(size = 40) )
+
+
+print(p_c1_age)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c1, "Zwave1age_OR_C1ref.png"),
+       plot = p_c1_age, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Peer Substance Use - C1 Reference
+
+```{r}
+#| label: fig-c1-peer
+
+c1_peer <- c1_params %>% filter(predictor_var == "Zpeer_subuse")
+
+ref_sig <- c1_pairs %>%
+  filter(predictor == "Zpeer_subuse",
+         cluster_a == 1 | cluster_b == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 1, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c1_pairs %>%
+  filter(predictor == "Zpeer_subuse",
+         cluster_a != 1, cluster_b != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c1_peer <- c1_peer %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Peer Substance Use"
+x_label     <- "Reference: C1"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c1_peer <- ggplot(c1_peer, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme +  theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) , 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                 axis.text.x = element_text(size = 32),
+                   axis.title = element_text(size = 40) )
+
+print(p_c1_peer)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c1, "Zpeer_subuse_OR_C1ref.png"),
+       plot = p_c1_peer, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Pubertal Timing - C1 Reference
+
+```{r}
+#| label: fig-c1-pub
+
+c1_pub <- c1_params %>% filter(predictor_var == "pub_timing")
+
+ref_sig <- c1_pairs %>%
+  filter(predictor == "pub_timing",
+         cluster_a == 1 | cluster_b == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 1, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c1_pairs %>%
+  filter(predictor == "pub_timing",
+         cluster_a != 1, cluster_b != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c1_pub <- c1_pub %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Pubertal Timing"
+x_label     <- "Reference: C1"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+             } else { 
+                 "No additional pairwise differences were significant after BH correction."
+}
+p_c1_pub <- ggplot(c1_pub, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+           linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) , 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                 axis.text.x = element_text(size = 32),
+                   axis.title = element_text(size = 40) )
+
+
+print(p_c1_pub)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c1, "pub_timing_OR_C1ref.png"),
+       plot = p_c1_pub, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Autonomy Supportive Parenting - C1 Reference
+
+```{r}
+#| label: fig-c1-asp
+c1_asp <- c1_params %>% filter(predictor_var == "Zasp")
+
+ref_sig <- c1_pairs %>%
+  filter(predictor == "Zasp",
+         cluster_a == 1 | cluster_b == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 1, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c1_pairs %>%
+  filter(predictor == "Zasp",
+         cluster_a != 1, cluster_b != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c1_asp <- c1_asp %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "* Significantly different than C1"
+x_label     <- "Reference: C1"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+              } else {
+                 "No additional pairwise differences were significant after BH correction."
+}
+p_c1_asp <- ggplot(c1_asp, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+           linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = "gray20",
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme +
+  theme(
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank()
+  )
+
+
+print(p_c1_asp)
+cat("\n\n*", fig_caption, "*\n\n")
+
+ggsave(file.path(fig_or_c1, "Zasp_OR_C1ref.png"),
+       plot = p_c1_asp, width = 3.25, height = 8, dpi = fig_dpi, units = "in",
+       bg = "transparent")
+```
+
+------------------------------------------------------------------------
+
+## Figures: C3 as Reference Group
+
+### Figure: Sex - C3 Reference
+
+```{r}
+#| label: fig-c3-sex
+
+
+c3_sex <- c3_params %>% filter(predictor_var == "female")
+
+ref_sig <- c3_pairs %>%
+  filter(predictor == "bio_sexD",
+         cluster_a == 3 | cluster_b == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 3, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c3_pairs %>%
+  filter(predictor == "bio_sexD",
+         cluster_a != 3, cluster_b != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c3_sex <- c3_sex %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Sex (Female vs. Male)"
+#x_label     <- "Reference: C3"
+#y_label     <- "Odds Ratio - C3 as Reference"
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c3_sex <- ggplot(c3_sex, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+           linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) ,
+                    axis.title.x = element_blank() ,
+                   axis.text.x = element_text(size = 28) ,axis.title.y = element_blank() )
+
+
+print(p_c3_sex)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c3, "bio_sexD_OR_C3ref.png"),
+       plot = p_c3_sex, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Age - C3 Reference
+
+```{r}
+#| label: fig-c3-age
+
+c3_age <- c3_params %>% filter(predictor_var == "Zwave1age")
+
+ref_sig <- c3_pairs %>%
+  filter(predictor == "Zwave1age",
+         cluster_a == 3 | cluster_b == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 3, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c3_pairs %>%
+  filter(predictor == "Zwave1age",
+         cluster_a != 3, cluster_b != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c3_age <- c3_age %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Age"
+x_label     <- "Reference: C3"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c3_age<- ggplot(c3_age, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) , 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                   axis.text.x = element_text(size = 28) )
+
+print(p_c3_age)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c3, "Zwave1age_OR_C3ref.png"),
+       plot = p_c3_age, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Peer Substance Use - C3 Reference
+
+```{r}
+#| label: fig-c3-peer
+
+c3_peer <- c3_params %>% filter(predictor_var == "Zpeer_subuse")
+
+ref_sig <- c3_pairs %>%
+  filter(predictor == "Zpeer_subuse",
+         cluster_a == 3 | cluster_b == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 3, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c3_pairs %>%
+  filter(predictor == "Zpeer_subuse",
+         cluster_a != 3, cluster_b != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c3_peer <- c3_peer %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Peer Substance Use"
+x_label     <- "Reference: C3"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c3_peer <- ggplot(c3_peer, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) , 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                   axis.text.x = element_text(size = 28) )
+
+print(p_c3_peer)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c3, "Zpeer_subuse_OR_C3ref.png"),
+       plot = p_c3_peer, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Pubertal Timing - C3 Reference
+
+```{r}
+#| label: fig-c3-pub
+
+c3_pub <- c3_params %>% filter(predictor_var == "pub_timing")
+
+ref_sig <- c3_pairs %>%
+  filter(predictor == "pub_timing",
+         cluster_a == 3 | cluster_b == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 3, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c3_pairs %>%
+  filter(predictor == "pub_timing",
+         cluster_a != 3, cluster_b != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c3_pub <- c3_pub %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "Pubertal Timing"
+x_label     <- "Reference: C3"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) {
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c3_pub <- ggplot(c3_pub, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme + theme(plot.caption    = element_text(size = 14, hjust = .5, face = "plain", family = plot_font,
+                                   margin = margin(t = 8)) , 
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank() ,
+                   axis.text.x = element_text(size = 28) )
+
+print(p_c3_pub)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c3, "pub_timing_OR_C3ref.png"),
+       plot = p_c3_pub, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+------------------------------------------------------------------------
+
+### Figure: Autonomy Supportive Parenting - C3 Reference
+
+```{r}
+#| label: fig-c3-asp
+
+c3_asp <- c3_params %>% filter(predictor_var == "Zasp")
+
+ref_sig <- c3_pairs %>%
+  filter(predictor == "Zasp",
+         cluster_a == 3 | cluster_b == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(cluster_a == 3, cluster_b, cluster_a)) %>%
+  pull(other)
+
+other_sig <- c3_pairs %>%
+  filter(predictor == "Zasp",
+         cluster_a != 3, cluster_b != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+  pull(pair)
+
+c3_asp <- c3_asp %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title  <- "* Significantly different than C3"
+x_label     <- "Reference: C3"
+y_label     <- y_lab
+fig_caption <- if (length(other_sig) > 0) { 
+                 paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                        paste(other_sig, collapse = "; "), ".")
+               } else {
+                 "No additional pairwise differences were significant after BH correction."
+ }
+p_c3_asp <- ggplot(c3_asp, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = "gray20",
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme +
+  theme(
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank()
+  )
+
+print(p_c3_asp)
+cat("\n*Caption:*", fig_caption, "\n")
+
+ggsave(file.path(fig_or_c3, "Zasp_OR_C3ref.png"),
+       plot = p_c3_asp, width = 3.25, height = 8, dpi = fig_dpi, units = "in",
+       bg = "transparent")
+```
+
+------------------------------------------------------------------------
+
+## Figure Labels
+```{r}
+#| label: fig-labels
+library(ggplot2)
+
+legend_labels <- c(
+  "C1"      = "C1: High PR - Low NR (35.6%)",
+  "C2"      = "C2: Low PR - Low NR (33.7%)",
+  "C3"      = "C3: Low PR - High NR(15.8%)",
+  "C4"      = "C4: High PR - High PR (14.9%)"
+)
+
+dummy_df <- data.frame(
+  x       = 1:4,
+  y       = 1:4,
+  cluster = factor(names(legend_labels), levels = names(legend_labels))
+)
+
+p <- ggplot(dummy_df, aes(x = x, y = y, fill = cluster)) +
+  geom_col() +
+  scale_fill_manual(values = cluster_colors, labels = legend_labels, name = NULL) +
+  guides(fill = guide_legend(ncol = 1, keywidth = 1.2, keyheight = 1.2)) +
+  coord_cartesian(ylim = c(100, 101)) +   # pushes bars completely out of view
+  theme_void() +
+  theme(
+    legend.position.inside = c(0.5, 0.5),
+    legend.position        = "inside",
+    legend.text            = element_text(size = 14),
+    legend.spacing.y       = unit(6, "pt")
+  )
+
+ggsave(file.path(fig_or_c1, "legend_only.png"),
+       plot = p, width = 14, height = 8, dpi = 300, units = "in")
+```
+
+```{r}
+
+legend_labels2 <- c(
+  "C1"      = "C1: Adaptive Risk-Takers     | High PR-Low NR (35.6%)",
+  "C2"      = "C2: Low Risk-Takers            | Low PR-Low NR (33.7%)",
+  "C3"      = "C3: Maldaptive Risk-Takers | Low PR-High NR (15.8%)",
+  "C4"      = "C4: High Risk-Takers           | High PR-High NR (14.9%)"
+)
+
+dummy_df2 <- data.frame(
+  x       = 1:4,
+  y       = 1:4,
+  cluster = factor(names(legend_labels2), levels = names(legend_labels2))
+)
+
+p2 <- ggplot(dummy_df2, aes(x = x, y = y, fill = cluster)) +
+  geom_col() +
+  scale_fill_manual(values = cluster_colors, labels = legend_labels2, name = NULL) +
+  guides(fill = guide_legend(ncol = 1, keywidth = 1.2, keyheight = 1.2)) +
+  coord_cartesian(ylim = c(100, 101)) +   # pushes bars completely out of view
+  theme_void() +
+  theme(
+    legend.position.inside = c(0.5, 0.5),
+    legend.position        = "inside",
+    legend.text            = element_text(size = 14),
+    legend.spacing.y       = unit(6, "pt")
+  )
+
+ggsave(file.path(fig_or_c1, "legend_only2.png"),
+       plot = p2, width = 8, height = 4, dpi = 300, units = "in")
+
+p3 <- ggplot(dummy_df2, aes(x = x, y = y, fill = cluster)) +
+  geom_col() +
+  scale_fill_manual(values = cluster_colors, labels = legend_labels2, name = NULL) +
+  guides(fill = guide_legend(ncol = 2, keywidth = 1.2, keyheight = 1.2)) +
+  coord_cartesian(ylim = c(100, 101)) +   # pushes bars completely out of view
+  theme_void() +
+  theme(
+    legend.position.inside = c(0.5, 0.5),
+    legend.position        = "inside",
+    legend.text            = element_text(size = 14),
+    legend.spacing.y       = unit(6, "pt")
+  )
+
+ggsave(file.path(fig_or_c1, "legend_only3.png"),
+       plot = p3, width = 14, height = 8, dpi = 300, units = "in")
+```
+
+
+
+------------------------------------------------------------------------
+
+### Draft Figure Notes
+
+**C1 as Reference Group**
+
+*Figure X.* Odds ratios for \[predictor\] predicting profile membership relative to C1 (reference group, OR = 1.0). Sex was dummy-coded (0 = male, 1 = female); all continuous predictors were standardized (*M* = 0, *SD* = 1). Asterisks (\*) indicate profiles whose odds ratio differs significantly from C1 after Benjamini-Hochberg false discovery rate correction (FDR \< .05). Omnibus Wald test *p*-values are reported without correction for multiple comparisons.
+
+**C3 as Reference Group**
+
+*Figure X.* Odds ratios for \[predictor\] predicting profile membership relative to C3 (reference group, OR = 1.0). Sex was dummy-coded (0 = male, 1 = female); all continuous predictors were standardized (*M* = 0, *SD* = 1). Asterisks (\*) indicate profiles whose odds ratio differs significantly from C3 after Benjamini-Hochberg false discovery rate correction (FDR \< .05). Omnibus Wald test *p*-values are reported without correction for multiple comparisons.
+### Data
+
+Line-graph version of the predictor odds ratios above — same underlying
+`c1_params`, `c3_params`, `c1_pairs`, and `c3_pairs` objects built in
+[Predictor Odds Ratios](#1-predictor-odds-ratios) (bar version), re-plotted
+here as one line per cluster so the trend across all four classes is visible
+at a glance, where the bar version emphasizes pairwise significance against
+the reference class instead. Reusing those objects also means the line
+panels now pick up the same, complete `pred_labels` mapping (including ASP)
+that the bar panels use — the original standalone version of this file had
+its own, incomplete copy of `pred_labels` that omitted ASP. ASP itself is
+still excluded from the predictor-panel loop below by design (its
+odds-ratio pattern is shown as its own dedicated figure in Predictor Odds
+Ratios), not because the label is missing.
+
+### Significance Color Settings
+
+```{r}
+#| label: sig-settings
+
+# Colors for OR points — edit hex codes to change
+color_sig_positive <- "#228833"   # green  — OR > 1, sig vs. reference
+color_sig_negative <- "#EE6677"   # purple — OR < 1, sig vs. reference
+color_nonsig       <- "#BBBBBB"   # grey   — not sig vs. reference
+color_reference    <- "black"     # black  — reference cluster (OR = 1.0 by definition)
+
+# Reference line at OR = 1.0
+or_refline_color <- "grey20"
+or_refline_type  <- "dashed"
+
+# Point shape (size and line width set in appearance-settings below)
+or_point_shape <- 21    # filled circle with border
+```
+
+### Figure Appearance Settings
+
+```{r}
+#| label: appearance-settings
+
+# Axis labels
+ylab_or_c1 <- "Odds Ratio (vs. C1)"
+ylab_or_c3 <- "Odds Ratio (vs. C3)"
+xlab_or_C1 <- "Reference: C1"
+xlab_or_C3 <- "Reference: C3"
+
+# Font and text sizes — inherited from _setup.R:
+#   plot_font, title_size, axis_title_size, axis_text_size, legend_text_size
+
+# Point and line appearance — word-doc scale
+or_point_shape <- 21   # filled circle with border
+or_point_size  <- 3
+or_line_size   <- 0.8
+
+# Legend color lookup (used by both line and bar figures)
+or_legend_colors <- c(
+  "Higher odds (sig.)"   = color_sig_positive,
+  "Lower odds (sig.)"    = color_sig_negative,
+  "Not significant"      = color_nonsig,
+  "Reference (OR = 1.0)" = color_reference
+)
+
+# Shared legend panel — appended to combined figures via patchwork
+p_or_legend <- ggplot(
+  data.frame(
+    x     = 1:4,
+    y     = 1,
+    label = factor(names(or_legend_colors), levels = names(or_legend_colors))
+  ),
+  aes(x = x, y = y, fill = label, color = label)
+) +
+  geom_point(shape = or_point_shape, size = or_point_size + 1, stroke = 0.5) +
+  scale_fill_manual(values  = or_legend_colors, name = NULL) +
+  scale_color_manual(values = or_legend_colors, name = NULL) +
+  guides(
+    fill  = guide_legend(nrow = 1, keywidth = 0.6, keyheight = 0.6,
+                         override.aes = list(shape = or_point_shape,
+                                             size  = or_point_size)),
+    color = "none"
+  ) +
+  coord_cartesian(ylim = c(100, 101)) +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.text     = element_text(size = legend_text_size, family = plot_font),
+    plot.background = element_rect(fill = NA, color = NA)
+  )
+```
+
+### Build OR Data: Helper Function
+
+```{r}
+#| label: build-or-data
+
+# build_or_long():
+#   params     = output of tidy_params() for a given reference class
+#   pairs      = output of apply_bh() for a given reference class
+#   ref_cluster = "C1" or "C3" — the reference cluster label
+#   ref_num    = 1 or 3 — the numeric cluster number used in pairs columns
+#
+# Returns a long data frame with one row per predictor × cluster,
+# with columns: predictor_var, predictor_label, cluster, log_odds, OR, or_color
+# The reference cluster row is added with OR = 1.0 and or_color = color_reference.
+
+build_or_long <- function(params, pairs, ref_cluster, ref_num) {
+
+  pred_var_to_pairs_name <- c(
+    "female"       = "bio_sexD",
+    "Zwave1age"    = "Zwave1age",
+    "Zpeer_subuse" = "Zpeer_subuse",
+    "pub_timing"   = "pub_timing")
+    #"Zasp"        = "Zasp")
+
+  or_colored <- params %>%
+    filter(cluster != ref_cluster) %>%
+    rowwise() %>%
+    mutate(
+      pairs_pred = pred_var_to_pairs_name[predictor_var],
+      is_sig = {
+        hit <- pairs %>%
+          filter(
+            predictor == pairs_pred,
+            (cluster_a == ref_num | cluster_b == ref_num),
+            sig == TRUE
+          ) %>%
+          mutate(other = ifelse(cluster_a == ref_num, cluster_b, cluster_a)) %>%
+          filter(other == as.integer(gsub("C", "", as.character(cluster))))
+        nrow(hit) > 0
+      },
+      or_color  = case_when(
+        !is_sig             ~ color_nonsig,
+        is_sig & OR > 1     ~ color_sig_positive,
+        is_sig & OR < 1     ~ color_sig_negative,
+        TRUE                ~ color_nonsig
+      ),
+      sig_label = case_when(
+        !is_sig             ~ "Not significant",
+        is_sig & OR > 1     ~ "Higher odds (sig.)",
+        is_sig & OR < 1     ~ "Lower odds (sig.)",
+        TRUE                ~ "Not significant"
+      )
+    ) %>%
+    ungroup() %>%
+    select(predictor_var, predictor_label, cluster, log_odds, OR, or_color, sig_label)
+
+  # Reference cluster row: OR = 1.0 by definition
+  ref_rows <- params %>%
+    filter(cluster == ref_cluster) %>%
+    mutate(
+      or_color  = color_reference,
+      OR        = 1.0,
+      log_odds  = 0,
+      sig_label = "Reference (OR = 1.0)"
+    ) %>%
+    select(predictor_var, predictor_label, cluster, log_odds, OR, or_color, sig_label)
+
+  bind_rows(or_colored, ref_rows) %>%
+    mutate(
+      cluster   = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
+      sig_label = factor(sig_label, levels = names(or_legend_colors))
+    )
+}
+
+c1_or_long <- build_or_long(c1_params, c1_pairs, ref_cluster = "C1", ref_num = 1)
+c3_or_long <- build_or_long(c3_params, c3_pairs, ref_cluster = "C3", ref_num = 3)
+```
+
+### Figure: C1 as Reference — One Panel per Predictor (Line)
+
+```{r}
+#| label: fig-or-c1-panels
+#| fig-width: 1.75
+#| fig-height: 4.0
+
+# Predictor display order and titles
+pred_order  <- c("female", "Zwave1age", "Zpeer_subuse", "pub_timing")
+pred_titles <- c(
+  "female"       = "Sex (Male = 0)",
+  "Zwave1age"    = "Age",
+  "Zpeer_subuse" = "Peer Substance Use",
+  "pub_timing"   = "Pubertal Timing")
+  # "Zasp"        = "Autonomy Supportive Parenting")
+
+# x-axis cluster label colors to match cluster colors
+x_axis_colors_c1 <- cluster_colors[c("C1", "C2", "C3", "C4")]
+
+# Build and print one line graph per predictor (C1 reference)
+plots_or_c1 <- lapply(pred_order, function(pred_var) {
+
+  pred_data  <- c1_or_long %>% filter(predictor_var == pred_var)
+  pred_title <- pred_titles[pred_var]
+
+  pairs_pred_name <- c(
+    "female"       = "bio_sexD",
+    "Zwave1age"    = "Zwave1age",
+    "Zpeer_subuse" = "Zpeer_subuse",
+    "pub_timing"   = "pub_timing"
+  )[pred_var]
+
+  other_sig_c1 <- c1_pairs %>%
+    filter(predictor == pairs_pred_name,
+           cluster_a != 1, cluster_b != 1,
+           sig == TRUE) %>%
+    mutate(pair_label = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+    pull(pair_label)
+
+  fig_caption_c1 <- if (length(other_sig_c1) > 0) {
+    paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+           paste(other_sig_c1, collapse = "; "), ".")
+  } else {
+    "No additional pairwise differences were significant after BH correction."
+  }
+
+  plot_obj <- ggplot(pred_data, aes(x = cluster, y = OR)) +
+    geom_hline(yintercept = 1.0,
+               linetype   = or_refline_type,
+               color      = or_refline_color,
+               linewidth  = 0.4) +
+    geom_line(aes(group = 1),
+              color     = "#BBBBBB",
+              linewidth = or_line_size,
+              linetype  = "solid") +
+    geom_point(aes(fill = sig_label, color = sig_label),
+               shape  = or_point_shape,
+               size   = or_point_size,
+               stroke = 0.5) +
+    scale_fill_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_color_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_y_log10(
+      labels = label_number(accuracy = 0.1),
+      expand = expansion(mult = c(0.15, 0.15))
+    ) +
+    labs(title = pred_title, caption = fig_caption_c1) +
+    theme_classic(base_size = axis_text_size, base_family = plot_font) +
+    theme(
+      legend.position    = "none",
+      plot.title         = element_text(size = axis_title_size, face = "plain",
+                                        hjust = 0.5, family = plot_font),
+      axis.title.y       = element_blank(),
+      axis.title.x       = element_blank(),
+      axis.text.x        = element_text(size = axis_text_size, face = "plain",
+                                        family = plot_font, angle = 0,
+                                        hjust = .5, vjust = 1,
+                                        color = x_axis_colors_c1),
+      axis.text.y        = element_text(size = axis_text_size, family = plot_font,
+                                        face = "plain"),
+      axis.ticks.x       = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.background    = element_rect(fill = NA, color = NA),
+      panel.background   = element_rect(fill = NA, color = NA)
+    )
+
+  print(plot_obj)
+  cat("\n*Caption:*", fig_caption_c1, "\n\n")
+
+  ggsave(file.path(fig_or_c1, paste0(pred_var, "_OR_C1ref_line.png")),
+         plot   = plot_obj,
+         width  = 14,
+         height = 8,
+         dpi    = fig_dpi,
+         units  = "in",
+         bg     = "transparent")
+
+  plot_obj
+})
+names(plots_or_c1) <- pred_order
+```
+
+------------------------------------------------------------------------
+
+### Figure: C3 as Reference — One Panel per Predictor (Line)
+
+```{r}
+#| label: fig-or-c3-panels
+#| fig-width: 1.75
+#| fig-height: 4.0
+
+# x-axis cluster label colors for C3 reference panels
+x_axis_colors_c3 <- cluster_colors[c("C1", "C2", "C3", "C4")]
+
+# Build and print one line graph per predictor (C3 reference)
+plots_or_c3 <- lapply(pred_order, function(pred_var) {
+
+  pred_data  <- c3_or_long %>% filter(predictor_var == pred_var)
+  pred_title <- pred_titles[pred_var]
+
+  pairs_pred_name <- c(
+    "female"       = "bio_sexD",
+    "Zwave1age"    = "Zwave1age",
+    "Zpeer_subuse" = "Zpeer_subuse",
+    "pub_timing"   = "pub_timing"
+  )[pred_var]
+
+  other_sig_c3 <- c3_pairs %>%
+    filter(predictor == pairs_pred_name,
+           cluster_a != 3, cluster_b != 3,
+           sig == TRUE) %>%
+    mutate(pair_label = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+    pull(pair_label)
+
+  fig_caption_c3 <- if (length(other_sig_c3) > 0) {
+    paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+           paste(other_sig_c3, collapse = "; "), ".")
+  } else {
+    "No additional pairwise differences were significant after BH correction."
+  }
+
+  plot_obj <- ggplot(pred_data, aes(x = cluster, y = OR)) +
+    geom_hline(yintercept = 1.0,
+               linetype   = or_refline_type,
+               color      = or_refline_color,
+               linewidth  = 0.4) +
+    geom_line(aes(group = 1),
+              color     = "grey65",
+              linewidth = or_line_size,
+              linetype  = "solid") +
+    geom_point(aes(fill = sig_label, color = sig_label),
+               shape  = or_point_shape,
+               size   = or_point_size,
+               stroke = 0.5) +
+    scale_fill_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_color_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_y_log10(
+      labels = label_number(accuracy = 0.1),
+      expand = expansion(mult = c(0.15, 0.15))
+    ) +
+    labs(title = pred_title, caption = fig_caption_c3) +
+    theme_classic(base_size = axis_text_size, base_family = plot_font) +
+    theme(
+      legend.position    = "none",
+      plot.title         = element_text(size = axis_title_size, face = "plain",
+                                        hjust = 0.5, family = plot_font),
+      axis.title.y       = element_blank(),
+      axis.title.x       = element_blank(),
+      axis.text.x        = element_text(size = axis_text_size, face = "plain",
+                                        family = plot_font, angle = 0,
+                                        hjust = .5, vjust = 1,
+                                        color = x_axis_colors_c3),
+      axis.text.y        = element_text(size = axis_text_size, family = plot_font,
+                                        face = "plain"),
+      axis.ticks.x       = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.background    = element_rect(fill = NA, color = NA),
+      panel.background   = element_rect(fill = NA, color = NA)
+    )
+
+  print(plot_obj)
+  cat("\n*Caption:*", fig_caption_c3, "\n\n")
+
+  ggsave(file.path(fig_or_c3, paste0(pred_var, "_OR_C3ref_line.png")),
+         plot   = plot_obj,
+         width  = 14,
+         height = 8,
+         dpi    = fig_dpi,
+         units  = "in",
+         bg     = "transparent")
+
+  plot_obj
+})
+names(plots_or_c3) <- pred_order
+```
+
+------------------------------------------------------------------------
+
+### Bar Plots: C1 as Reference — One Panel per Predictor
+
+```{r}
+#| label: fig-or-c1-bar-panels
+#| fig-width: 1.75
+#| fig-height: 4.0
+
+plots_or_c1_bar <- lapply(pred_order, function(pred_var) {
+
+  pred_data  <- c1_or_long %>% filter(predictor_var == pred_var)
+  pred_title <- pred_titles[pred_var]
+
+  pairs_pred_name <- c(
+    "female"       = "bio_sexD",
+    "Zwave1age"    = "Zwave1age",
+    "Zpeer_subuse" = "Zpeer_subuse",
+    "pub_timing"   = "pub_timing"
+  )[pred_var]
+
+  other_sig_c1 <- c1_pairs %>%
+    filter(predictor == pairs_pred_name,
+           cluster_a != 1, cluster_b != 1,
+           sig == TRUE) %>%
+    mutate(pair_label = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+    pull(pair_label)
+
+  fig_caption_c1 <- if (length(other_sig_c1) > 0) {
+    paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+           paste(other_sig_c1, collapse = "; "), ".")
+  } else {
+    "No additional pairwise differences were significant after BH correction."
+  }
+
+  plot_obj <- ggplot(pred_data, aes(x = cluster, y = OR, fill = sig_label)) +
+    geom_hline(yintercept = 1.0,
+               linetype   = or_refline_type,
+               color      = or_refline_color,
+               linewidth  = 0.5) +
+    geom_col(width = 0.65, color = "white", linewidth = 0.2) +
+    scale_fill_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_y_continuous(
+      labels = label_number(accuracy = 0.1),
+      expand = expansion(mult = c(0.05, 0.15))
+    ) +
+    labs(title = pred_title, caption = fig_caption_c1) +
+    theme_classic(base_size = axis_text_size, base_family = plot_font) +
+    theme(
+      legend.position    = "none",
+      plot.title         = element_text(size = axis_title_size, face = "plain",
+                                        hjust = 0.5, family = plot_font),
+      axis.title.y       = element_blank(),
+      axis.title.x       = element_blank(),
+      axis.text.x        = element_text(size = axis_text_size, face = "plain",
+                                        family = plot_font, angle = 0,
+                                        hjust = .5, vjust = 1,
+                                        color = x_axis_colors_c1),
+      axis.text.y        = element_text(size = axis_text_size, family = plot_font,
+                                        face = "plain"),
+      axis.ticks.x       = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.background    = element_rect(fill = NA, color = NA),
+      panel.background   = element_rect(fill = NA, color = NA)
+    )
+
+  print(plot_obj)
+  cat("\n*Caption:*", fig_caption_c1, "\n\n")
+
+  ggsave(file.path(fig_or_c1, paste0(pred_var, "_OR_C1ref_bar.png")),
+         plot   = plot_obj,
+         width  = 14,
+         height = 8,
+         dpi    = fig_dpi,
+         units  = "in",
+         bg     = "transparent")
+
+  plot_obj
+})
+names(plots_or_c1_bar) <- pred_order
+```
+
+------------------------------------------------------------------------
+
+### Bar Plots: C3 as Reference — One Panel per Predictor
+
+```{r}
+#| label: fig-or-c3-bar-panels
+#| fig-width: 1.75
+#| fig-height: 4.0
+
+plots_or_c3_bar <- lapply(pred_order, function(pred_var) {
+
+  pred_data  <- c3_or_long %>% filter(predictor_var == pred_var)
+  pred_title <- pred_titles[pred_var]
+
+  pairs_pred_name <- c(
+    "female"       = "bio_sexD",
+    "Zwave1age"    = "Zwave1age",
+    "Zpeer_subuse" = "Zpeer_subuse",
+    "pub_timing"   = "pub_timing"
+  )[pred_var]
+
+  other_sig_c3 <- c3_pairs %>%
+    filter(predictor == pairs_pred_name,
+           cluster_a != 3, cluster_b != 3,
+           sig == TRUE) %>%
+    mutate(pair_label = paste0("C", cluster_a, " vs. C", cluster_b)) %>%
+    pull(pair_label)
+
+  fig_caption_c3 <- if (length(other_sig_c3) > 0) {
+    paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+           paste(other_sig_c3, collapse = "; "), ".")
+  } else {
+    "No additional pairwise differences were significant after BH correction."
+  }
+
+  plot_obj <- ggplot(pred_data, aes(x = cluster, y = OR, fill = sig_label)) +
+    geom_hline(yintercept = 1.0,
+               linetype   = or_refline_type,
+               color      = or_refline_color,
+               linewidth  = 0.5) +
+    geom_col(width = 0.65, color = "white", linewidth = 0.2) +
+    scale_fill_manual(values = or_legend_colors, name = NULL, drop = FALSE) +
+    scale_y_continuous(
+      labels = label_number(accuracy = 0.1),
+      expand = expansion(mult = c(0.05, 0.15))
+    ) +
+    labs(title = pred_title, caption = fig_caption_c3) +
+    theme_classic(base_size = axis_text_size, base_family = plot_font) +
+    theme(
+      legend.position    = "none",
+      plot.title         = element_text(size = axis_title_size, face = "plain",
+                                        hjust = 0.5, family = plot_font),
+      axis.title.y       = element_blank(),
+      axis.title.x       = element_blank(),
+      axis.text.x        = element_text(size = axis_text_size, face = "plain",
+                                        family = plot_font, angle = 0,
+                                        hjust = .5, vjust = 1,
+                                        color = x_axis_colors_c3),
+      axis.text.y        = element_text(size = axis_text_size, family = plot_font,
+                                        face = "plain"),
+      axis.ticks.x       = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.background    = element_rect(fill = NA, color = NA),
+      panel.background   = element_rect(fill = NA, color = NA)
+    )
+
+  print(plot_obj)
+  cat("\n*Caption:*", fig_caption_c3, "\n\n")
+
+  ggsave(file.path(fig_or_c3, paste0(pred_var, "_OR_C3ref_bar.png")),
+         plot   = plot_obj,
+         width  = 14,
+         height = 8,
+         dpi    = fig_dpi,
+         units  = "in",
+         bg     = "transparent")
+
+  plot_obj
+})
+names(plots_or_c3_bar) <- pred_order
+```
+
+------------------------------------------------------------------------
+
+### Legend Panel (standalone inspect / export)
+
+```{r}
+#| label: fig-or-legend
+#| fig-width: 6.5
+#| fig-height: 1.0
+
+print(p_or_legend)
+
+ggsave(file.path(fig_or_c1, "legend_or.png"),
+       plot = p_or_legend,
+       width = 6.5, height = 1.0,
+       dpi = fig_dpi, units = "in",
+       bg  = "transparent")
+```
+
+------------------------------------------------------------------------
+
+### Draft Figure Notes
+
+**C1 as Reference Group**
+
+*Figure X.* Odds ratios for \[predictor\] predicting profile membership relative to C1 (reference group, OR = 1.0). Sex was dummy-coded (0 = male, 1 = female); all continuous predictors were standardized (*M* = 0, *SD* = 1). The y-axis is log-scaled. Points are colored by direction and significance: green = significantly higher odds than C1; purple = significantly lower odds than C1; grey = not significant vs. C1; black = C1 reference (OR = 1.0 by definition). Significance determined by Benjamini-Hochberg false discovery rate correction (FDR \< .05).
+
+**C3 as Reference Group**
+
+*Figure X.* Odds ratios for \[predictor\] predicting profile membership relative to C3 (reference group, OR = 1.0). Sex was dummy-coded (0 = male, 1 = female); all continuous predictors were standardized (*M* = 0, *SD* = 1). The y-axis is log-scaled. Points are colored by direction and significance: green = significantly higher odds than C3; purple = significantly lower odds than C3; grey = not significant vs. C3; black = C3 reference (OR = 1.0 by definition). Significance determined by Benjamini-Hochberg false discovery rate correction (FDR \< .05).
+
+# 2. ASP Scale Odds Ratios
+
+## Overview
+
+Same odds-ratio approach as Predictor Odds Ratios above, restricted to the three Autonomy Supportive Parenting (ASP) subscales — support, involvement, and warmth — tested individually rather than as the single composite ASP score used elsewhere. The dissertation reports ASP odds ratios only at the composite level; the subscale-level breakdown here is exploratory and not something the dissertation text interprets directly. SDT treats involvement (parental attention/engagement) and autonomy support proper (perspective-taking, minimizing pressure) as conceptually separable but interrelated facets (Grolnick, 2009; Teuber et al., 2022), so if one subscale predicts profile membership more strongly than the others, that would suggest not all forms of autonomy support are equally proximal to positive and negative risk-taking.
+
+## Data Import
+
+ASP scale odds-ratio parameters and paired comparisons, by reference class, are read in from the project's Excel results workbook. Import code is included but not rendered below.
+
+::: {.callout-note}
+The code for this section is collapsed by default, but can be expanded individually for each section or all together with the toggle on the upper right.
+:::
+```{r}
+#| label: import-asp-or
+#| echo: false
+c1_params_asp <- read_excel(data_path, sheet = "asp scale parameters")
+c3_params_asp <- read_excel(data_path, sheet = "asp scale parameters C3")
+c1_pairs_asp <- read_excel(data_path, sheet = "asp paired C1")
+c3_pairs_asp  <- read_excel(data_path, sheet = "asp paired C3")
+```
+
+```{r}
+#| label: data-view-asp-or-raw
+gt(head(c1_params_asp, 5)) |> tab_header(title = "asp scale parameters")
+gt(head(c1_pairs_asp, 5)) |> tab_header(title = "asp paired C1")
+```
+
+## Wrangle Parameter Sheets
+```{r}
+#| label: wrangle-params-asp-or
+pred_labels <- c(
+  "parentwarmth"       = "Parental Warmth",
+  "parentinvolve"    = "Parental Involvement",
+  "autonomysupport" = "Autonomy Support"
+)
+
+c1_asp_or <- tidy_params(c1_params_asp, c("Cluster1", "Cluster2", "Cluster3", "Cluster4"))
+c3_asp_or <- tidy_params(c3_params_asp, c("Cluster3", "Cluster4", "Cluster1", "Cluster2"))
+```
+
+### BH Correction on Pairwise Comparisons
+```{r}
+#| label: bh-pairs-asp-or
+# apply_bh_cap() is the shared helper defined in Helper Functions above (handles
+# the "Covariate"/clustera/clusterb sheet layout used by the ASP, interaction,
+# and indicator-pairs sheets). The dead apply_b2h()/c1_pairsasp2/c3_pairsasp2
+# from the original file are removed here -- that second correction was
+# computed but never referenced by any downstream figure or table.
+c1_pairsasp <- apply_bh_cap(c1_pairs_asp)
+
+```{r}
+#| label: data-view-asp-or-tidy
+gt(head(c1_pairsasp, 6)) |> tab_header(title = "After: BH-corrected ASP pairwise comparisons")
+```
+
+*RCM: 2-3 sentences on which subscale (support, involvement, or warmth) most strongly predicts profile membership, once you've looked at the figures below — the dissertation doesn't report this breakdown, so this is the one place in the portfolio without dissertation text to draw the interpretation from directly.
+
+## Figures: C1 as Reference Group
+
+### Figure: Parental Warmth - C1 Reference
+
+```{r}
+#| label: fig-c1-warmth
+
+c1_warmth <- c1_asp_or %>% filter(predictor_var == "parentwarmth")
+
+ref_sig <- c1_pairsasp %>%
+  filter(predictor == "parentwarmth",
+         clustera == 1 | clusterb == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 1, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C1
+
+other_sig <- c1_pairsasp %>%
+  filter(predictor == "parentwarmth",
+         clustera != 1, clusterb != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c1_warmth <- c1_warmth %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Parental Warmth"
+x_label      <- "Reference: C1"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c1_warmth, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+
+ggsave(file.path(fig_asp_or_c1, "warmth_OR_C1.png"),
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+
+### Figure: Parental Involvement - C1 Reference
+
+```{r}
+#| label: fig-c1-involve
+#| fig-width: 6
+#| fig-height: 5
+
+c1_involve <- c1_asp_or %>% filter(predictor_var == "parentinvolve")
+
+ref_sig <- c1_pairsasp %>%
+  filter(predictor == "parentinvolve",
+         clustera == 1 | clusterb == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 1, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C1
+
+other_sig <- c1_pairsasp %>%
+  filter(predictor == "parentinvolve",
+         clustera != 1, clusterb != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c1_involve <- c1_involve %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Parental Involvement"
+x_label      <- "Reference: C1"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c1_involve, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+ggsave(file.path(fig_asp_or_c1, "involve_OR_C1.png"),
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+
+### Figure: Autonomy Support  - C1 Reference
+
+```{r}
+#| label: fig-c1-support
+#| fig-width: 6
+#| fig-height: 5
+
+c1_support <- c1_asp_or %>% filter(predictor_var == "autonomysupport")
+
+ref_sig <- c1_pairsasp %>%
+  filter(predictor == "autonomysupport",
+         clustera == 1 | clusterb == 1,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 1, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C1
+
+other_sig <- c1_pairsasp %>%
+  filter(predictor == "autonomysupport",
+         clustera != 1, clusterb != 1,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c1_support <- c1_support %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Autonomy Support"
+x_label      <- "Reference: C1"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c1_involve, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+ggsave(file.path(fig_asp_or_c1, "support_OR_C1.png"),
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+## Figures: C3 as Reference Group
+
+### Figure: Parental Warmth - C3 Reference
+
+```{r}
+#| label: fig-c3-warmth
+#| fig-width: 6
+#| fig-height: 5
+
+c3_warmth <- c3_asp_or %>% filter(predictor_var == "parentwarmth")
+
+ref_sig <- c3_pairsasp %>%
+  filter(predictor == "parentwarmth",
+         clustera == 3 | clusterb == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 3, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C3
+
+other_sig <- c3_pairsasp %>%
+  filter(predictor == "parentwarmth",
+         clustera != 3, clusterb != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c3_warmth <- c3_warmth %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Parental Warmth"
+x_label      <- "Reference: C3"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c3_warmth, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+ggsave(file.path(fig_asp_or_c3, "warmth_OR_C3.png"),
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+
+### Figure: Parental Involvement - C3 Reference
+
+```{r}
+#| label: fig-c3-involve
+#| fig-width: 6
+#| fig-height: 5
+
+c3_involve <- c3_asp_or %>% filter(predictor_var == "parentinvolve")
+
+ref_sig <- c3_pairsasp %>%
+  filter(predictor == "parentinvolve",
+         clustera == 3 | clusterb == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 3, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C3
+
+other_sig <- c3_pairsasp %>%
+  filter(predictor == "parentinvolve",
+         clustera != 3, clusterb != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c3_involve <- c3_involve %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Parental Involvement"
+x_label      <- "Reference: C3"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c3_involve, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+ggsave(file.path(fig_asp_or_c3, "involve_OR_C3.png"),
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+
+### Figure: Autonomy Support  - C3 Reference
+
+```{r}
+#| label: fig-c3-support
+#| fig-width: 6
+#| fig-height: 5
+
+c3_support <- c3_asp_or %>% filter(predictor_var == "autonomysupport")
+
+ref_sig <- c3_pairsasp %>%
+  filter(predictor == "autonomysupport",
+         clustera == 3 | clusterb == 3,
+         sig == TRUE) %>%
+  mutate(other = ifelse(clustera == 3, clusterb, clustera)) %>%
+  pull(other)                          # cluster numbers sig different from C3
+
+other_sig <- c3_pairsasp %>%
+  filter(predictor == "autonomysupport",
+         clustera != 3, clusterb != 3,
+         sig == TRUE) %>%
+  mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
+  pull(pair)                           # non-reference sig pairs for caption
+
+c3_support <- c3_support %>%
+  mutate(
+    ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
+    ast_y     = OR + max(OR) * ast_nudge_pct
+  )
+
+plot_title   <- "Autonomy Support"
+x_label      <- "Reference: C3"
+y_label      <- y_lab    # from formatting chunk
+fig_caption  <- if (length(other_sig) > 0) { 
+                  paste0("Additional significant pairwise differences after BH correction (FDR < .05): ",
+                         paste(other_sig, collapse = "; "), ".")
+              }  else {
+                  "No additional pairwise differences were significant after BH correction."
+ }
+p <- ggplot(c3_involve, aes(x = cluster, y = OR, fill = cluster)) +
+  geom_col(width = bar_width, alpha = bar_alpha,
+            linewidth = bar_outline_lwd) +
+  geom_hline(yintercept = 1, color = ref_line_color,
+             linewidth = ref_line_lwd, linetype = ref_line_type) +
+  geom_text(aes(y = OR, label = round(OR, 2)),
+            color = or_label_color, size = or_label_size, vjust = or_label_vjust) +
+  geom_text(aes(y = ast_y, label = ast_label),
+            size = ast_text_size, vjust = 0.5) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
+                     labels = number_format(accuracy = 0.1)) +
+  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
+  or_theme
+
+ggsave(file.path(fig_asp_or_c3, "support_OR_C3.png"), 
+      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+

@@ -185,7 +185,7 @@ indicators, read as probabilities. Right y-axis (0–3): continuous
 indicators, read as means.
 
 ```{r}
-#| label: fig-indicator-profileneg
+#| label: indicator-profilecreate
 
 # Figure caption
 fig_caption <- str_wrap(
@@ -194,7 +194,7 @@ fig_caption <- str_wrap(
     "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
     "Continuous bars are rescaled to the primary axis for display;"
   ),
-  width = 110)
+  width = 72)
 
 
 # make_panel() takes explicit axis config so Negative and Positive can differ.
@@ -278,15 +278,6 @@ p_pos <- make_panel(
   sec_transform = ~ . / scale_factor,
  # right_name    = "Probability (binary indicators)",
   right_breaks  = seq(0, 1, by = 0.2))
-
-print(p_neg)
-print(p_pos)
-
-ggsave(
-  filename = file.path(fig_indicator, "profile_figure_neg.png"),
-     device = agg_png,
-  plot     = p_neg,
-  width    = 14, height = 6, dpi = fig_dpi, units = "in")
 ```
 
 @fig-indicator-profilepos: Positive Indicators Left y-axis (0–3):
@@ -294,46 +285,35 @@ continuous indicators, read as means. Right y-axis (0–1): binary
 indicators, read as probabilities.
 
 ```{r}
+#| label: fig-indicator-profileneg
+#| fig-width: 18
+#| fig-height: 7
+print(p_neg)
+```
+
+```{r}
 #| label: fig-indicator-profilepos
+#| fig-width: 18
+#| fig-height: 7
+print(p_pos)
+```
+
+
+```{r}
+#| label: indicator-profilesave
 #| include: false
 
+ggsave(
+  filename = file.path(fig_indicator, "profile_figure_neg.png"),
+     device = agg_png,
+  plot     = p_neg,
+  width    = 14, height = 6, dpi = fig_dpi, units = "in")
 
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_pos.png"),
   plot     = p_pos,    
   device = agg_png,
   width    = 14, height = 6, dpi = fig_dpi, units = "in")
-```
-
-@fig-indicator-profile: Profiles The two panels (Negative risk /
-Positive risk) share dual-axis and are combined into one figure.
-
-```{r}
-#| label: fig-indicator-profile
-#| include: false
-
-# Remove left axis from positive panel
-# so the shared 0-3 middle axis appears only once
-p_neg_trim <- p_neg +
-  theme(
-    axis.text.y.right = element_text(margin = margin(l = 12)),
-    plot.margin       = margin(12, 0, 20, 85) )
-p_pos_trim <- p_pos +
-  theme(
-    axis.title.y.left = element_blank(),
-    axis.text.y.left  = element_blank(),
-   # axis.ticks.y.left = element_blank(),
-    plot.margin       = margin(12, 12, 12, 0))    # no left margin only 
-
-combined <- (p_neg_trim + p_pos_trim) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "none")
-combined
-
-ggsave(
-  filename = file.path(fig_indicator, "profile_figures_combined.png"),
-  plot     = combined,
-  width    = 40, height = 6, dpi = fig_dpi, units = "in")
 ```
 
 Sports participation, school activity involvement, and friend disclosure
@@ -344,8 +324,6 @@ C4) from the two non-problem classes (C1, C2). The one indicator with
 limited discriminating power across all four classes was problem
 approach (class means ranged narrowly from 2.80–2.95, with only 4 of 6
 pairwise comparisons significant).
-
-### Table: Non-Significant Comparisons
 
 @tbl-nonsig: List of non-significant pairwise comparisons
 
@@ -419,7 +397,7 @@ fig_caption_line <- str_wrap(
     "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
     "Continuous values are rescaled to the primary axis for display;"
   ),
-  width = 110
+  width = 72
 )
 
 # Panel-building function
@@ -1003,7 +981,7 @@ p_age <- ggplot(age_df, aes(x = cluster, y = proportion, fill = age_group)) +
     title   = "Age Distribution by Cluster",
     caption = str_wrap(
       "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top).",
-      width = 110) ) +
+      width = 72) ) +
     or_theme +
   theme(
     axis.title.x    = element_blank(),

@@ -45,7 +45,7 @@ theoretically coherent classes (LPA conducted in LatentGOLD; Vermunt &
 Magidson, 2005).
 
 The four classes are C1 (High PR–Low NR, 35.6%), C2 (Low PR–Low NR,
-33.7%), C3 (Low PR–High NR, 15.8%), and C4 (High PR–High NR, 14.9%) — PR
+33.7%), C3 (Low PR–High NR, 15.8%), and C4 (High PR–High NR, 14.9%). PR
 = positive risk-taking, NR = negative risk-taking. Alcohol problems
 functioned as a near-binary separator: both C1 and C2 reported
 essentially no alcohol problems, while C3 and C4 reported substantially
@@ -75,7 +75,10 @@ pairs_raw   <- read_excel(data_path, sheet = "paired comparisons")
 
 ```{r}
 #| label: data-view-profile-raw
-gt(head(profile_raw, 6)) |> tab_header(title = "profile R — indicator probabilities/means by class")
+# View first 6 rows of profiles
+gt(head(profile_raw, 6)) |>
+  tab_header(title = "profile R — indicator probabilities/means by class")|>
+  fmt_number(columns = where(is.numeric), decimals = 2)
 ```
 
 ### Wrangle Profile Data
@@ -84,8 +87,7 @@ Binary indicators (probabilities, 0–1) and continuous indicators (means,
 0–3) are plotted together on a shared primary axis. Continuous values
 are divided by `scale_factor` before plotting so they fit the 0–1
 primary axis; the right-hand secondary axis reverses that transformation
-to show the true 0–3 scale. `scale_factor` is defined in one place —
-adjust if indicator ranges change.
+to show the true 0–3 scale.
 
 ```{r}
 #| label: wrangle-profile
@@ -97,8 +99,7 @@ cluster_labels <- c(
   "C1"      = paste0("C1 (", cluster_sizes["C1"], "%)"),
   "C2"      = paste0("C2 (", cluster_sizes["C2"], "%)"),
   "C3"      = paste0("C3 (", cluster_sizes["C3"], "%)"),
-  "C4"      = paste0("C4 (", cluster_sizes["C4"], "%)")
-)
+  "C4"      = paste0("C4 (", cluster_sizes["C4"], "%)"))
 
 # Fill colors — no outlines
 indicator_colors <- cluster_colors
@@ -113,8 +114,7 @@ continuous_indicators <- c(
   "Problems from alcohol",
   "Sport Teams",
   "Extracurriculars",
-  "Don't avoid problems"
-)
+  "Don't avoid problems")
 
 # Negative panel: binary on left (0-1), continuous on right (0-3)
 #   → continuous values divided by scale_factor to fit primary axis
@@ -143,15 +143,14 @@ profile_long <- profile_raw %>%
     value_plot = case_when(
       Risk == "Negative" & Indicators %in% neg_continuous ~ value / scale_factor,
       Risk == "Positive" & !Indicators %in% pos_continuous ~ value * scale_factor,
-      TRUE ~ value
-    )
-  )
+      TRUE ~ value ) )
 ```
 
 ### BH Correction on Pairwise Comparisons
 
-Non-estimable rows (p = ".") and the Intercept block are dropped before
-correction is applied across all remaining tests simultaneously.
+Non-estimable rows (p = ".") and the Intercept block (included in
+LatentGOLD data export) are dropped before correction is applied across
+all remaining tests simultaneously.
 
 ```{r}
 #| label: bh-pairs
@@ -163,17 +162,16 @@ pairs <- pairs_raw %>%
     cluster_b = as.integer(clusterb),
     pair      = paste0("C", cluster_a, " vs. C", cluster_b),
     p_adj     = p.adjust(p_value, method = "BH"),
-    sig       = p_adj < .05
-  )
+    sig       = p_adj < .05)
 ```
 
 Benjamini-Hochberg correction is applied here because every indicator is
 compared across all six class-pairs simultaneously; without correction,
 running this many pairwise tests inflates the false-positive rate well
-past .05 (Benjamini & Hochberg, 1995, 2000). Overall, the negative risk
-indicators contributed about equally to differentiating classes, while
-positive risk indicators were the primary driver of separation within
-each alcohol-problem grouping (see Overview above).
+past .05 ([@benjamini1995], [@benjamini2000]). Overall, the negative
+risk indicators contributed about equally to differentiating classes,
+while positive risk indicators were the primary driver of separation
+within each alcohol-problem grouping.
 
 ```{r}
 #| label: data-view-pairs-bh
@@ -196,29 +194,29 @@ fig_caption <- paste(
 )
 
 # make_panel() takes explicit axis config so Negative and Positive can differ.
-#
+
 # Negative: left = binary 0-1, right = continuous 0-3
 #   primary axis shows 0-1; sec.axis multiplies by scale_factor to show 0-3
-#
+
 # Positive: left = continuous 0-3, right = binary 0-1
 #   primary axis shows 0-3; sec.axis divides by scale_factor to show 0-1
 
+# Create a function to make panel
 make_panel <- function(risk_label,
                        left_name = "" ,left_lim, left_breaks,
                        sec_transform, right_name = "", right_breaks) {
 
   df <- profile_long %>% filter(Risk == risk_label)
 
+  # Create panel
   ggplot(df, aes(x = Indicators, y = value_plot, fill = cluster)) +
      geom_vline(
   xintercept = seq(1.5, length(unique(df$Indicators)) - 0.5, by = 1),
   color      = "#DDDDDD",
-  linewidth  = 0.4
-) +
+  linewidth  = 0.4) +
     geom_col(
       position = position_dodge(width = dodge_width),
-      width    = bar_width
-    ) +
+      width    = bar_width) +
     scale_fill_manual(values = indicator_colors, labels = cluster_labels,
                       name = NULL) +
     scale_y_continuous(
@@ -232,20 +230,24 @@ make_panel <- function(risk_label,
         name      = right_name,
         breaks    = right_breaks,
         labels    = number_format(accuracy = 0.1)
-      )
+     )
     ) +
     labs(title = paste(risk_label, "Risk Indicators"), y = NULL, caption = fig_caption) +
     base_theme +
     theme(
-      axis.text.x        = element_text(angle = 35, hjust = 1,
-                                        size = axis_text_size),
-      axis.title.y.right = element_text(size = axis_title_size,
-                                        color = "gray40"),
-      legend.position    = "none",
-      plot.title         = element_text(size = title_size, face = "bold",
-                                        hjust = 0.5),
-          plot.margin       = margin(20, 0, 40, 100)
-    )
+      # adjust panel format from base theme
+      axis.text.x = element_text(
+        angle = 35, hjust = 1,size = axis_text_size),
+      
+      axis.title.y.right = element_text(
+        size = axis_title_size, color = "gray40"),
+      
+      legend.position = "none",
+      
+      plot.title  = element_text(
+        size = title_size, face = "bold",  hjust = 0.5),
+      
+          plot.margin = margin(20, 0, 40, 100) )
 }
 
 # Negative: left=binary(0-1), right=continuous(0-3)
@@ -256,8 +258,7 @@ p_neg <- make_panel(
   left_breaks   = seq(0, 1, by = 0.2),
   sec_transform = ~ . * scale_factor,
  # right_name    = "Within-class mean (continuous indicators)",
-  right_breaks  = seq(0, scale_factor, by = 1)
-)
+  right_breaks  = seq(0, scale_factor, by = 1))
 
 # Positive: left=continuous(0-3), right=binary(0-1)
 p_pos <- make_panel(
@@ -267,18 +268,16 @@ p_pos <- make_panel(
   left_breaks   = seq(0, scale_factor, by = 1),
   sec_transform = ~ . / scale_factor,
  # right_name    = "Probability (binary indicators)",
-  right_breaks  = seq(0, 1, by = 0.2)
-)
+  right_breaks  = seq(0, 1, by = 0.2))
 
 print(p_neg)
-
+print(p_pos)
 
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_neg.png"),
      device = agg_png,
   plot     = p_neg,
-  width    = 14, height = 6, dpi = fig_dpi, units = "in"
-)
+  width    = 14, height = 6, dpi = fig_dpi, units = "in")
 ```
 
 @fig-indicator-profilepos: Positive Indicators Left y-axis (0–3):
@@ -287,14 +286,14 @@ indicators, read as probabilities.
 
 ```{r}
 #| label: fig-indicator-profilepos
+#| include: false
 
-print(p_pos)
+
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_pos.png"),
   plot     = p_pos,    
   device = agg_png,
-  width    = 14, height = 6, dpi = fig_dpi, units = "in"
-)
+  width    = 14, height = 6, dpi = fig_dpi, units = "in")
 ```
 
 @fig-indicator-profile: Profiles The two panels (Negative risk /
@@ -302,22 +301,21 @@ Positive risk) share dual-axis and are combined into one figure.
 
 ```{r}
 #| label: fig-indicator-profile
-#| fig-width: 14
-#| fig-height: 6
+#| include: false
+
 # Remove left axis from positive panel
 # so the shared 0-3 middle axis appears only once
 p_neg_trim <- p_neg +
   theme(
     axis.text.y.right = element_text(margin = margin(l = 12)),
-    plot.margin       = margin(12, 0, 20, 85)
-  )
+    plot.margin       = margin(12, 0, 20, 85) )
 p_pos_trim <- p_pos +
   theme(
     axis.title.y.left = element_blank(),
     axis.text.y.left  = element_blank(),
    # axis.ticks.y.left = element_blank(),
-    plot.margin       = margin(12, 12, 12, 0)    # no left margin only
-  )
+    plot.margin       = margin(12, 12, 12, 0))    # no left margin only 
+
 combined <- (p_neg_trim + p_pos_trim) +
   plot_layout(guides = "collect") &
   theme(legend.position = "none")
@@ -326,8 +324,7 @@ combined
 ggsave(
   filename = file.path(fig_indicator, "profile_figures_combined.png"),
   plot     = combined,
-  width    = 40, height = 6, dpi = fig_dpi, units = "in"
-)
+  width    = 40, height = 6, dpi = fig_dpi, units = "in")
 ```
 
 Sports participation, school activity involvement, and friend disclosure
@@ -383,6 +380,7 @@ kable(by_cluster,
 
 ```{r}
 #| label: tbl-sig-indicator
+#| warning: false
 by_indicator <- pairs %>%
   group_by(Indicator) %>%
   summarise(
@@ -399,34 +397,49 @@ kable(by_indicator,
 
 ### Line Profile Figure
 
+Create line profile figure for negative risk indicators
+(@fig-indicator-neg-profile) and positive risk indicators
+(@fig-indicator-pos-profile).
+
 ```{r}
 #| label: fig-indicator-profileneg-line
+# Figure caption
 fig_caption_line <- paste(
   "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).",
   "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
-  "Continuous values are rescaled to the primary axis for display;"
-)
+  "Continuous values are rescaled to the primary axis for display;")
 
+# Panel-building function
 make_panel_line <- function(risk_label,
-                            left_name  = "", left_lim, left_breaks,
-                            sec_transform, right_name = "", right_breaks) {
+                             left_name = "", left_lim, left_breaks,
+                             sec_transform, right_name = "", right_breaks) {
+
   df_line <- profile_long %>% filter(Risk == risk_label)
+
   ggplot(df_line, aes(x = Indicators, y = value_plot,
-                      color = cluster, group = cluster)) +
- geom_vline(
-  xintercept = seq(1.5, length(unique(df_line$Indicators)) - 0.5, by = 1),
-  color      = "gray90",
-  linewidth  = 0.4
-) +
+                       color = cluster, group = cluster)) +
+
+    # ---- reference gridlines between indicators ----
+    geom_vline(
+      xintercept = seq(1.5, length(unique(df_line$Indicators)) - 0.5, by = 1),
+      color      = "gray90",
+      linewidth  = 0.4
+    ) +
+
+    # ---- line + point geoms ----
     geom_line(linewidth = 3) +
-    geom_point(size = 4) + 
+    geom_point(size = 4) +
+
+    # ---- color scale ----
     scale_color_manual(values = indicator_colors, labels = cluster_labels,
-                       name = NULL) +
+                        name = NULL) +
+
+    # ---- y-axis (primary + secondary) ----
     scale_y_continuous(
-      limits = left_lim,
-      breaks = left_breaks,
-      labels = number_format(accuracy = 0.1),
-      expand = expansion(mult = c(0, 0.03)),
+      limits   = left_lim,
+      breaks   = left_breaks,
+      labels   = number_format(accuracy = 0.1),
+      expand   = expansion(mult = c(0, 0.03)),
       sec.axis = sec_axis(
         transform = sec_transform,
         name      = right_name,
@@ -434,80 +447,105 @@ make_panel_line <- function(risk_label,
         labels    = number_format(accuracy = 0.1)
       )
     ) +
-    labs(title = paste(risk_label, "Risk Indicators"), y = NULL, caption = fig_caption_line) +
+
+    # ---- labels ----
+    labs(title = paste(risk_label, "Risk Indicators"), y = NULL,
+         caption = fig_caption_line) +
+
+    # ---- theme ----
     base_theme +
     theme(
       axis.text.x        = element_text(angle = 35, hjust = 1,
-                                        size = axis_text_size),
+                                         size = axis_text_size),
       axis.title.y.right = element_text(size = axis_title_size,
-                                        color = "gray40"),
+                                         color = "gray40"),
       legend.position    = "none",
       plot.title         = element_text(size = title_size, face = "bold",
-                                        hjust = 0.5),
-      plot.margin       = margin(12, 0, 20, 85)
-    )
+                                         hjust = 0.5),
+      plot.margin        = margin(12, 0, 20, 85))
 }
 
-# Negative: left=binary(0-1), right=continuous(0-3)
+# Build panels
+
+# Negative: left = binary (0-1), right = continuous (0-3)
 p_line_neg <- make_panel_line(
   risk_label    = "Negative",
   left_lim      = c(0, 1.08),
   left_breaks   = seq(0, 1, by = 0.2),
   sec_transform = ~ . * scale_factor,
-  right_breaks  = seq(0, scale_factor, by = 1)
-)
+  right_breaks  = seq(0, scale_factor, by = 1))
 
-# Positive: left=continuous(0-3), right=binary(0-1)
+# Positive: left = continuous (0-3), right = binary (0-1)
 p_line_pos <- make_panel_line(
   risk_label    = "Positive",
   left_lim      = c(0, scale_factor * 1.08),
   left_breaks   = seq(0, scale_factor, by = 1),
   sec_transform = ~ . / scale_factor,
-  right_breaks  = seq(0, 1, by = 0.2)
-)
+  right_breaks  = seq(0, 1, by = 0.2))
+```
 
-
+```{r}
+#| label: fig-indicator-neg-profile
+#| echo: false
 print(p_line_neg)
+```
+
+```{r}
+#| label: fig-indicator-pos-profile
+#| echo: false
+print(p_line_pos)
+```
+
+```{r}
+#| label: fig-indicator-profileneg-line-save
+#| include: false
+
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_line_neg.png"),
   device   = agg_png,
   plot     = p_line_neg,
-  width    = 24, height = 8, dpi = fig_dpi, units = "in"
-)
+  width    = 24, height = 8, dpi = fig_dpi, units = "in")
 
-print(p_line_pos)
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_line_pos.png"),
   device   = agg_png,
   plot     = p_line_pos,
-  width    = 24, height = 8, dpi = fig_dpi, units = "in"
-)
+  width    = 24, height = 8, dpi = fig_dpi, units = "in")
 ```
 
 ```{r}
+#| label: indicator-profilecombined
 # Remove left axis from positive panel so the shared 0-3 middle axis appears only once
 p_neg_trim_line <- p_line_neg +
   theme(
     axis.text.y.right = element_text(margin = margin(l = 12)),
-    plot.margin       = margin(12, 0, 20, 85)
-  )
+    plot.margin       = margin(12, 0, 20, 85))
+
 p_pos_trim_line <- p_line_pos +
   theme(
     axis.title.y.left = element_blank(),
     axis.text.y.left  = element_blank(),
    # axis.ticks.y.left = element_blank(),
-    plot.margin       = margin(12, 12, 12, 0)    # no left margin only
-  )
+    plot.margin       = margin(12, 12, 12, 0))   # no left margin only  
+
 combined_line <- (p_neg_trim_line + p_pos_trim_line) +
   plot_layout(guides = "collect") &
   theme(legend.position = "none")
-combined_line
+```
 
+```{r}
+#| label: fig-indicator-profilecombined
+
+combined_line
+```
+
+```{r}
+#| label: save-combined
+#| include: false
 ggsave(
   filename = file.path(fig_indicator, "profile_figures_combined_line.png"),
   plot     = combined_line,
-  width    = 24, height = 14, dpi = fig_dpi, units = "in"
-)
+  width    = 24, height = 14, dpi = fig_dpi, units = "in")
 ```
 
 # 2. Indicator Profiles — Standardized (Z-Score)
@@ -529,7 +567,7 @@ their own.
 ```{r}
 #| label: variable-labels
 
-#Variable labels for plots
+# Variable labels for plots
 indicator_label_map <- c(
   WSDalc               = "Alcohol Problems",
   cigwhole             = "Cigarette",
@@ -618,10 +656,10 @@ zscore_long <- sav_scaled %>%
     cluster    = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
     label      = indicator_label_map[variable],
     Risk       = indicator_risk_panel[variable],
-    label      = factor(label, levels = indicator_label_map[c(neg_order, pos_order)])
-  )
-
+    label      = factor(label, levels = indicator_label_map[c(neg_order, pos_order)]) )
 ```
+
+Preview of data
 
 ```{r}
 #| label: data-view-zscore
@@ -641,21 +679,18 @@ cluster_descriptions <- c(
   "C1" = "High PR - Low NR",
   "C2" = "Low PR - Low NR",
   "C3" = "Low PR - High NR",
-  "C4" = "High PR - High NR"
-)
+  "C4" = "High PR - High NR")
 
 cluster_labels_z <- setNames(
   paste0(names(cluster_sizes_z), ": ", cluster_descriptions, " (", cluster_sizes_z, "%)"),
-  names(cluster_sizes_z)
-)
+  names(cluster_sizes_z))
+
 cluster_colors <- c(
   "C1" = "#44AA99",
   "C2" = "#88CCEE",   
   "C3" = "#882255",
-  "C4" = "#DDCC77"   
-)
+  "C4" = "#DDCC77")
 
-# Colors — pulls from cluster_colors defined in _setup.R
 zscore_colors <- cluster_colors
 ```
 
@@ -735,6 +770,23 @@ make_zscore_panel <- function(risk_label) {
 # Run function for each indicator set
 p_zneg <- make_zscore_panel("Negative")
 p_zpos <- make_zscore_panel("Positive")
+```
+
+```{r}
+#| label: panel-standardized-neg
+#| echo: false
+print(p_zneg)  
+```
+
+```{r}
+#| label: panel-standardized-pos
+#| echo: false
+print(p_zpos)
+```
+
+```{r}
+#| label: save-panel-standardized
+#| include: false
 
 # Save negative panel
 ggsave(
@@ -753,41 +805,22 @@ ggsave(
   bg       = "transparent")
 ```
 
-```{r}
-#| label: panel-standardized-neg
-#| echo: false
-print(p_zneg)  
-```
-
-```{r}
-#| label: panel-standardized-pos
-#| echo: false
-print(p_zpos)
-```
-
 # 3. Predictor Profiles
 
 #### Overview
 
 Predictor profiles show where the four classes fall on the variables
-being tested as correlates of class membership — biological sex, age,
+being tested as correlates of class membership, biological sex, age,
 peer substance use, pubertal timing, and autonomy-supportive parenting
-(ASP) — as distinct from the indicators that defined the classes in the
-first place (see Indicator Profiles above). Sex was a moderately
-discriminating covariate (4 of 6 pairwise comparisons significant); age,
-pubertal timing, and ASP each discriminated broadly (5 of 6
-significant); peer substance use discriminated across all 6 comparisons
-and was the single most consistent predictor of profile membership.
-
-#### Data Import
-
-Predictor variable profiles across latent classes are read in from the
-same local Excel results workbook used throughout this project. Import
-code is included but not rendered below.
+(ASP). Biological sex was a moderately discriminating covariate (4 of 6
+pairwise comparisons significant); age, pubertal timing, and ASP each
+discriminated broadly (5 of 6 significant); peer substance use
+discriminated across all 6 comparisons and was the single most
+consistent predictor of profile membership.
 
 ```{r}
 #| label: import-predictor
-#| echo: false
+#| include: false
 pred_raw <- read_excel(data_path, sheet = "predictor profiles R")
 ```
 
@@ -809,16 +842,14 @@ display_labels <- c(
   "Zwave1age"    = "Age",
   "Zpeer_subuse" = "Peer SU",
   "Zub_timing"   = "Puberty",
-  "Zasp"         = "ASP"
-)
+  "Zasp"         = "ASP")
 
 profile_df <- pred_raw %>%
   filter(Covariate %in% pred_order) %>%
   select(-Overall) %>%
   pivot_longer(
     cols = c(Cluster1, Cluster2, Cluster3, Cluster4),
-    names_to = "cluster", values_to = "value"
-  ) %>%
+    names_to = "cluster", values_to = "value") %>%
   mutate(
     cluster   = factor(recode(cluster,
                    Cluster1 = "C1", Cluster2 = "C2",
@@ -826,8 +857,7 @@ profile_df <- pred_raw %>%
                  levels = c("C1","C2","C3","C4")),
     Covariate = factor(Covariate, levels = pred_order),
     display   = factor(display_labels[as.character(Covariate)],
-                       levels = display_labels[pred_order])
-  )
+                       levels = display_labels[pred_order]))
 ```
 
 ```{r}
@@ -846,15 +876,13 @@ unstand_df <- pred_raw %>%
   select(-Overall) %>%
   pivot_longer(
     cols = c(Cluster1, Cluster2, Cluster3, Cluster4),
-    names_to = "cluster", values_to = "value"
-  ) %>%
+    names_to = "cluster", values_to = "value" ) %>%
   mutate(
     cluster   = factor(recode(cluster,
                    Cluster1 = "C1", Cluster2 = "C2",
                    Cluster3 = "C3", Cluster4 = "C4"),
                  levels = c("C1","C2","C3","C4")),
-    Covariate = factor(Covariate, levels = unstand_order)
-  )
+    Covariate = factor(Covariate, levels = unstand_order) )
 ```
 
 Age distribution dataframe. Oldest group (18–19) stacks at the top.
@@ -868,8 +896,7 @@ age_df <- pred_raw %>%
   select(-Overall) %>%
   pivot_longer(
     cols = c(Cluster1, Cluster2, Cluster3, Cluster4),
-    names_to = "cluster", values_to = "proportion"
-  ) %>%
+    names_to = "cluster", values_to = "proportion" ) %>%
   mutate(
     cluster   = factor(recode(cluster,
                    Cluster1 = "C1", Cluster2 = "C2",
@@ -877,18 +904,13 @@ age_df <- pred_raw %>%
                  levels = c("C1","C2","C3","C4")),
     age_group = factor(label, levels = c(
       "18-19 years old", "17 years old", "16 years old",
-      "14-15 years old", "13 years old"
-    ))
-  )
+      "14-15 years old", "13 years old"  )))
 ```
 
 #### Predictor Profile Graph (Standardized)
 
 ```{r}
-#| label: fig-profile-standardized
-#| fig-cap: "Note. Age, Peer Substance Use, Pubertal Timing, and Autonomy Supportive Parenting were standardized (M = 0, SD = 1). Sex dummy-coded (0 = male, 1 = female); % Male shown as raw proportion."
-#| fig-width: 14
-#| fig-height: 8
+#| label: profile-standardized
 # Cluster sizes
 cluster_sizes_z <- c("C1" = 35.6, "C2" = 33.7, "C3" = 15.8, "C4" = 14.9)
 
@@ -907,7 +929,7 @@ cluster_labels_z <- setNames(
 # Colors — pulls from cluster_colors defined in _setup.R
 zscore_colors <- cluster_colors
 
-  
+# Create predictor profile plot
 p_profile <- ggplot(profile_df, aes(x = display, y = value, fill = cluster)) +
   geom_vline(
     xintercept = seq(1.5, length(profile_df) - 0.5, by = 1),
@@ -931,8 +953,21 @@ p_profile <- ggplot(profile_df, aes(x = display, y = value, fill = cluster)) +
   base_theme +
   theme(legend.position = "top") +
   guides(fill = guide_legend(nrow = 1))
+```
+
+```{r}
+#| label: fig-profile-standardized
+#| fig-cap: "Note. Age, Peer Substance Use, Pubertal Timing, and Autonomy Supportive Parenting were standardized (M = 0, SD = 1). Sex dummy-coded (0 = male, 1 = female); % Male shown as raw proportion."
+#| fig-width: 14
+#| fig-height: 8
+#| echo: false
 
 print(p_profile)
+```
+
+```{r}
+#| label: profile-standardized-save
+#| include: false
 
 ggsave(file.path(fig_predictor, "Predictor_Profile_Standardized.png"),
        plot = p_profile, width = 13, height = 6.5,
@@ -940,191 +975,64 @@ ggsave(file.path(fig_predictor, "Predictor_Profile_Standardized.png"),
        bg = "transparent")
 ```
 
+
 Older adolescents and adolescents with earlier pubertal timing were
 overrepresented in the two alcohol-problem classes (C3, C4), consistent
 with developmental increases in negative risk-taking across adolescence
-(Duell et al., 2018; Moffitt, 2017) and with the early-timing hypothesis
+([@duell2018], [@moffitt2017]) and with the early-timing hypothesis
 linking earlier physical maturation to elevated risk propensity
-(Natsuaki et al., 2009). Male adolescents were more likely to fall in
-the alcohol-problem classes, consistent with prior findings of higher
-delinquency rates among males (Miller et al., 2010). Peer substance use
-was the single strongest and most consistent predictor — the only
-covariate with all pairwise comparisons against both C1 and C3
-significant — matching developmental literature identifying peer
-behavior as a robust predictor of adolescent delinquency (Dishion et
-al., 1999; Dishion & Tipsord, 2011; Henneberger et al., 2021).
+([@natsuaki2009]). Male adolescents were more likely to fall in the
+alcohol-problem classes, consistent with prior findings of higher
+delinquency rates among males [@miller2010]. Peer substance use was the
+single strongest and most consistent predictor, the only covariate with
+all pairwise comparisons against both C1 and C3 significant, matching
+developmental literature identifying peer behavior as a robust predictor
+of adolescent delinquency ([@dishion2011; @dishion1999;
+@henneberger2021]).
 
 #### Age Distribution
 
 Youngest (13) at bottom; oldest (18–19) at top.
 
 ```{r}
-#| label: fig-age-distribution
-#| fig-cap: "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top)."
-#| fig-width: 14
-#| fig-height: 7
+#| label: plot-age-distribution
+
+# Create age distribution plot
 p_age <- ggplot(age_df, aes(x = cluster, y = proportion, fill = age_group)) +
   geom_col(position = "stack", width = bar_width) +
   scale_fill_manual(
     values = age_colors, name = "Age Group",
     breaks = c("13 years old","14-15 years old","16 years old",
-               "17 years old","18-19 years old")
-  ) +
+               "17 years old","18-19 years old") ) +
   scale_y_continuous(
     name   = "Proportion",
     limits = c(0, 1.01), expand = c(0, 0),
     breaks = seq(0, 1, by = 0.25),
-    labels = number_format(accuracy = 0.01)
-  ) +
+    labels = number_format(accuracy = 0.01)) +
   labs(
     title   = "Age Distribution by Cluster",
-    caption = "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top)."
-  ) +
+    caption = "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top)." ) +
     or_theme +
   theme(
     axis.title.x    = element_blank(),
-    legend.position = "bottom"
-  ) +
+    legend.position = "bottom" ) +
   guides(fill = guide_legend(nrow = 2))
+```
 
+```{r}
+#| label: fig-age-distribution
+#| fig-cap: "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top)."
+#| fig-width: 14
+#| fig-height: 7
+#| #| echo: false
 print(p_age)
+```
 
+```{r}
+#| label: age-plot-save
+#| include: false
 ggsave(file.path(fig_predictor, "Age_Distribution.png"),
        plot = p_age, width = 14, height = 7,
        dpi = fig_dpi, units = "in",
        bg = "transparent")
-```
-
-# 4. ASP Scale Profiles
-
-This is the scale-composite counterpart to the ASP predictor shown above
-— support, involvement, and warmth as separate parenting subscales,
-rather than the single composite ASP score used elsewhere. The
-dissertation's discussion notes this is worth examining at the subscale
-level: SDT treats involvement (parental attention/engagement) and
-autonomy support proper (perspective-taking, minimizing pressure) as
-conceptually separable but interrelated facets (Grolnick, 2009; Teuber
-et al., 2022), so subscale-level differences in how strongly each
-predicts profile membership would be theoretically informative — a
-question the composite-level odds ratios (below) can't answer on their
-own.
-
-#### Data Import
-
-ASP scale profiles across latent classes are read in from the project's
-Excel results workbook. Import code is included but not rendered below.
-
-```{r}
-#| label: import-asp
-#| echo: false
-asp_raw <- read_excel(data_path, sheet = "asp profiles R")
-```
-
-```{r}
-#| label: data-view-asp-raw
-gt(asp_raw) |> tab_header(title = "asp profiles R — scale means by class")
-```
-
-#### Build Dataframes
-
-Standardized profile dataframe (z-scored predictors + % male).
-
-```{r}
-#| label: build-profile-asp
-asp_pred_order <- c("support", "involve", "warmth", "Zsupport", "Zinvolve", "Zwarmth")
-
-asp_display_labels <- c(
-    "support" = "Autonomy Support",
-  "involve"    = "Parental Involvement",
-    "warmth"     = "Parental Warmth",
-    "support" = "Autonomy Support",
-  "involve"    = "Parental Involvement",
-    "warmth"     = "Parental Warmth"
-)
-
-asp_df <- asp_raw %>%
-  filter(Covariate %in% asp_pred_order) %>%
-  pivot_longer(
-    cols = c(Cluster1, Cluster2, Cluster3, Cluster4),
-    names_to = "cluster", values_to = "value"
-  ) %>%
-  mutate(
-    cluster   = factor(recode(cluster,
-                   Cluster1 = "C1", Cluster2 = "C2",
-                   Cluster3 = "C3", Cluster4 = "C4"),
-                 levels = c("C1","C2","C3","C4")),
-    Covariate = factor(Covariate, levels = asp_pred_order),
-    display   = factor(asp_display_labels[as.character(Covariate)],
-                       levels = asp_display_labels[asp_pred_order])
-  )
-```
-
-```{r}
-#| label: data-view-asp-long
-gt(head(asp_df, 8)) |> tab_header(title = "After: long format for plotting")
-```
-
-#### Profile Figures (Standardized)
-
-```{r}
-#| label: fig-asp-Zsupport
-
-p_aspZ <- ggplot(asp_df %>% filter(Covariate == "Zsupport"),
-                aes(x = cluster, y = value, fill = cluster)) +
-  geom_col(width = bar_width) +
-  geom_hline(yintercept = 0, color = ref_line_color,
-             linewidth = ref_line_lwd, linetype = ref_line_type) +
-  scale_fill_manual(values = cluster_colors, name = "Cluster") +
-  scale_y_continuous(name = "Mean",
-                     expand = expansion(mult = c(0.08, 0.08)),
-                     labels = number_format(accuracy = 0.01)) +
-  labs(title = "Autonomy Support",
-       caption = "Mean standardized (z-scored) autonomy-supportive parenting score by latent class.") +
-  or_theme +  theme(
-    axis.title.x = element_blank())
-print(p_aspZ)
-ggsave(file.path(fig_asp_profiles, "stand_asp.png"),
-       plot = p_aspZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
-```
-
-```{r}
-#| label: fig-asp-Zinvolve
-
-p_involveZ <- ggplot(asp_df %>% filter(Covariate == "Zinvolve"),
-                aes(x = cluster, y = value, fill = cluster)) +
-  geom_col(width = bar_width) +
-  geom_hline(yintercept = 0, color = ref_line_color,
-             linewidth = ref_line_lwd, linetype = ref_line_type) +
-  scale_fill_manual(values = cluster_colors, name = "Cluster") +
-  scale_y_continuous(name = "Mean",
-                     expand = expansion(mult = c(0.08, 0.08)),
-                     labels = number_format(accuracy = 0.01)) +
-  labs(title = "Parental Involvement",
-       caption = "Mean standardized (z-scored) parental involvement score by latent class.") +
-  or_theme +  theme(
-    axis.title.x = element_blank())
-print(p_involveZ)
-ggsave(file.path(fig_asp_profiles, "stand_involve.png"),
-       plot = p_involveZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
-```
-
-```{r}
-#| label: fig-asp-Zwarmth
-
-p_warmthZ <- ggplot(asp_df %>% filter(Covariate == "Zwarmth"),
-                aes(x = cluster, y = value, fill = cluster)) +
-  geom_col(width = bar_width) +
-  geom_hline(yintercept = 0, color = ref_line_color,
-             linewidth = ref_line_lwd, linetype = ref_line_type) +
-  scale_fill_manual(values = cluster_colors, name = "Cluster") +
-  scale_y_continuous(name = "Mean",
-                     expand = expansion(mult = c(0.08, 0.08)),
-                     labels = number_format(accuracy = 0.01)) +
-  labs(title = "Parental Warmth",
-       caption = "Mean standardized (z-scored) parental warmth score by latent class.") +
-  or_theme +  theme(
-    axis.title.x = element_blank())
-print(p_warmthZ)
-ggsave(file.path(fig_asp_profiles, "stand_warmth.png"),
-       plot = p_warmthZ, width = 5, height = 4, dpi = fig_dpi, units = "in")
 ```

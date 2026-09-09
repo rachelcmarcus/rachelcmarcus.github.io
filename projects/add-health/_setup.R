@@ -22,13 +22,20 @@ data_path <- "C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Rach
 # --- Output folders (relative to this .qmd file's own directory) --------------
 # All add-health figures are saved into the repo-level figures/ folder so
 # they're committed to GitHub alongside the site, organized by project.
+# Figure output paths, grouped by which consolidated file writes to them
+
+# Profiles.qmd
 fig_indicator    <- "../../figures/add-health/indicator-profiles"
 fig_predictor    <- "../../figures/add-health/predictor-profiles"
+fig_asp_profiles <- "../../figures/add-health/asp-scales/profiles"
+
+# Odds-Ratios.qmd
 fig_or_c1        <- "../../figures/add-health/odds-ratios/c1-reference"
 fig_or_c3        <- "../../figures/add-health/odds-ratios/c3-reference"
-fig_asp_profiles <- "../../figures/add-health/asp-scales/profiles"
 fig_asp_or_c1    <- "../../figures/add-health/asp-scales/c1-reference"
 fig_asp_or_c3    <- "../../figures/add-health/asp-scales/c3-reference"
+
+# Interaction-and-Comparisons.qmd
 fig_interactions <- "../../figures/add-health/interactions"
 
 # --- Cluster fill colors --------------------------------------------

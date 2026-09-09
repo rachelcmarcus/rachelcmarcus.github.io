@@ -71,6 +71,21 @@ library(haven)
 library(irr)
 ```
 
+
+**Demo Data Set Up**
+```{r}
+#| label: demo-setup
+#| include: false
+# Set file path to demo folder
+DEMO_PATH <- "C:/Users/rcm5550/Desktop/portfolio-starter/docs/projects/baseline-warmth-synchrony/demo files"
+
+demo_files <- list.files(DEMO_PATH, pattern = "\\.csv$", full.names = TRUE)
+
+demo_files2 <- list.files(DEMO_PATH, pattern = "\\.csv$", full.names = FALSE)
+
+print(demo_files2)
+```
+
 # 2. Define Reusable Import and Processing Functions
 
 ## Extract the couple ID from a file name {#sec-id-function}
@@ -97,6 +112,40 @@ extract_couple_id <- function(filename) {
 }
 ```
 
+```{r}
+#| label: demo-id-function
+#| echo: false
+demo_ids <- tibble(
+  source_file = basename(demo_files),
+  ID = map_chr(demo_files, extract_couple_id))
+
+knitr::kable(demo_ids, caption = "Couple ID Extracted From Each Demo File Name")
+```
+**Raw CARMA Export Before Processing (All 4 Demo Files)**
+
+Import all four demo files and tag each row with source file, ID, person, and condition. This is same data processing `file_index` does for reliability files 
+in Section 6, adapted here  so the four demo files can sit in one results table.
+```{r}
+#| label: demo-import-raw
+#| code-fold: true
+# Import all demo files, using extract_couple_id function and demo_files list
+demo_raw_all <- map_dfr(demo_files, function(f) {
+  read.csv(f) %>%
+    rename(second = Time, warmth = Code) %>%
+    mutate(
+      source_file = basename(f),
+      ID = extract_couple_id(f),
+      person = if_else(str_detect(source_file, "_M_"), "Mom", "Partner"),
+      condition = if_else(
+        str_detect(source_file, "NEG"), "Negative", "Positive") )
+})
+
+knitr::kable(
+  demo_raw_all %>% select(ID, condition, person, second, warmth),
+  caption = "Raw CARMA Export Before Processing (All 4 Demo Files)") %>%
+  kableExtra::kable_styling(full_width = FALSE) %>%
+  kableExtra::scroll_box(height = "400px")
+```
 ## Process one CARMA warmth file {#sec-single-file-function}
 
 This function contains the core cleaning rules that should be identical for **every CARMA file**. It imports one CSV and returns a standardized long dataset containing one row per coded second.
@@ -216,6 +265,42 @@ process_single_warmth_file <- function(filename_full) {
 }
 ```
 
+**Processed Output: Demo Files**
+```{r}
+#| label: demo-single-file-processed
+#| echo: false
+# Every value across all 4 files has a decimal component, so this shows trunc()                      acting on the entire coding window, not an isolated example.
+demo_processed_all <- map_dfr(demo_files, process_single_warmth_file) %>%
+  mutate(
+    person = if_else(str_detect(source_file, "_M_"), "Mom", "Partner"),
+    condition = if_else(str_detect(source_file, "NEG"), "Negative", "Positive"))
+
+knitr::kable(
+  demo_processed_all %>% select(ID, condition, person, second, warmth),
+  caption = "Processed Output: Truncated Codes Beginning at Second 6 (All 4 Demo Files)"
+) %>%
+  kableExtra::kable_styling(full_width = FALSE) %>%
+  kableExtra::scroll_box(height = "400px")
+```
+**Raw CARMA Data vs Processed Truncated Data**
+```{r}
+#| label: demo-truncation-compare
+#| echo: false
+demo_compare_all <- demo_raw_all %>%
+  rename(warmth_raw = warmth) %>%
+  select(ID, condition, person, source_file, second, warmth_raw) %>%
+  inner_join(
+    demo_processed_all %>% select(source_file, second, warmth_truncated = warmth),
+    by = c("source_file", "second") ) %>%
+  select(ID, condition, person, second, warmth_raw, warmth_truncated)
+
+knitr::kable(
+  demo_compare_all,
+  caption = "Raw Decimal Codes vs. Truncated Values (All 4 Demo Files)") %>%
+  kableExtra::kable_styling(full_width = FALSE) %>%
+  kableExtra::scroll_box(height = "400px")
+```
+
 ## Process one original baseline warmth condition
 
 This wrapper finds all original CARMA files matching one condition (`BL_M_NEG`, `BL_P_NEG`, `BL_M_POS`, or `BL_P_POS`), sends every file through the [single-file processing function](#sec-single-file-function), and then converts the standardized long data into the wide format used in the final SPSS dataset.
@@ -281,6 +366,21 @@ process_warmth_files <- function(path, pattern, variable_prefix, average_name) {
 }
 ```
 
+```{r}
+#| label: demo-production-wrapper
+#| echo: false
+demo_M_NEG <- process_warmth_files(DEMO_PATH, "BL_M_NEG", "blmnwh", "blmnwh.avg")
+demo_P_NEG <- process_warmth_files(DEMO_PATH, "BL_P_NEG", "blfnwh", "blfnwh.avg")
+demo_M_POS <- process_warmth_files(DEMO_PATH, "BL_M_POS", "blmpwh", "blmpwh.avg")
+demo_P_POS <- process_warmth_files(DEMO_PATH, "BL_P_POS", "blfpwh", "blfpwh.avg")
+
+knitr::kable(demo_M_NEG[, c(1:6, ncol(demo_M_NEG))], caption = "Wide Reshape: Mom Negative Warmth")
+knitr::kable(demo_P_NEG[, c(1:6, ncol(demo_P_NEG))], caption = "Wide Reshape: Partner Negative Warmth")
+knitr::kable(demo_M_POS[, c(1:6, ncol(demo_M_POS))], caption = "Wide Reshape: Mom Positive Warmth")
+knitr::kable(demo_P_POS[, c(1:6, ncol(demo_P_POS))], caption = "Wide Reshape: Partner Positive Warmth")
+```
+
+
 ## Validate a finished wide warmth dataset {#sec-validation-function}
 
 This function is the final data-quality stop point for the wide production datasets. It checks that there is one row per ID and that all nonmissing second-by-second warmth values are within **1–7** after code 0 has been converted to missing.
@@ -323,6 +423,15 @@ validate_warmth_dataset <- function(dataset, dataset_name) {
 
   message(dataset_name, ": data-quality checks passed.")
 }
+```
+
+```{r}
+#| label: demo-validation
+#| echo: false
+validate_warmth_dataset(demo_M_NEG, "demo_M_NEG")
+validate_warmth_dataset(demo_P_NEG, "demo_P_NEG")
+validate_warmth_dataset(demo_M_POS, "demo_M_POS")
+validate_warmth_dataset(demo_P_POS, "demo_P_POS")
 ```
 
 # 3. Process the Original Baseline Warmth Files
@@ -410,6 +519,21 @@ BL_WH <- list(
 # Run the final quality check on the complete merged production dataset.
 validate_warmth_dataset(BL_WH, "BL_WH")
 ```
+
+```{r}
+#| label: demo-full-merge
+#| echo: false
+# Reuses demo_M_NEG / demo_P_NEG / demo_M_POS / demo_P_POS from the
+# production-wrapper demo above.
+demo_merged <- list(demo_M_NEG, demo_P_NEG, demo_M_POS, demo_P_POS) %>%
+  reduce(full_join, by = "ID")
+
+knitr::kable(
+  demo_merged[, c("ID", "blmnwh.avg", "blfnwh.avg", "blmpwh.avg", "blfpwh.avg")],
+  digits = 2,
+  caption = "Merged Baseline Warmth Averages by Condition (Demo Couple 123)")
+```
+
 
 ## Preview the final baseline warmth dataset
 
@@ -823,7 +947,7 @@ AC2_RESULTS <- RELIABILITY_MATCHED %>%
     expected_agreement,
     CI_lower,
     CI_upper,
-    p_valu)
+    p_value)
 
 knitr::kable(
   AC2_RESULTS,

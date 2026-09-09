@@ -1,5 +1,5 @@
 ---
-title: "SPR Cup Analysis"
+title: "Resilience Analysis"
 bibliography: references.bib
 editor: 
   markdown: 
@@ -17,23 +17,23 @@ resilience using the Add Health dataset ([@harris2013], specifically
 Waves I and III (*N* = 4,882) and can be broken down into the following
 steps:
 
-[Step 0: Disadvantage Composites]: indicators are used to build
-**outcome-specific disadvantage composites** [@marquez2023]
+@sec-step0: Wave I structural disadvantage indicators are used to build
+**outcome-specific disadvantage composites**[@marquez2023].
 
-[Step 1: Cumulative Disadvantage to Outcome]: **regress** each outcome
-on those composites [@miller-lewis2013]
+@sec-step1: Wave III outcomes are **regressed** on those composites
+[@miller-lewis2013].
 
-[Step 2: Residuals]: Extract residuals from those regressions to create
-**continuous** **resilience scores** (better- or worse-than-expected
+@sec-step2: The standardized residuals from those models become
+**continuous resilience scores** (better- or worse-than-expected
 adaptation given disadvantage exposure).
 
-[Step 3: Protective Factors]: Multilevel resilience factors (individual,
-family, school, community) are tested as **predictors of resilience**,
-first in the full sample.
+@sec-step3: Multilevel resilience factors (individual, family, school,
+community) are tested as **predictors of resilience**, first in the full
+sample.
 
-[Step 4: Protective vs. Promotive]: Create high-disadvantage subsamples
-to distinguish between **promotive effects** (help regardless of
-disadvantage level) and **protective effects** (buffer specifically
+@sec-step4: The sample is split into low- and high-disadvantage
+subsamples to distinguish between **promotive effects** (help regardless
+of disadvantage level) and **protective effects** (buffer specifically
 under high disadvantage).
 
 **Load Packages**
@@ -412,7 +412,7 @@ descriptives_png <- descriptives |>
 save_as_image(descriptives_png, path = paste0(fig_dir, "descriptives.png"), zoom = 3, expand = 0)
 ```
 
-# Step 0: Disadvantage Composites {#step0}
+# Step 0: Disadvantage Composites {#sec-step0}
 
 ## Individual Disadvantage Regressions
 
@@ -423,7 +423,7 @@ substance use, educational attainment, general health). Each regression
 uses the standardized outcome and standardized predictor variable, and
 each chunk stores the beta and p-value, which become the weights used to
 build the cumulative disadvantage composite in the [Step 1: Cumulative
-Disadvantage to Outcome] section below.
+Disadvantage to Outcome](**regress**%20each%20outcome) section below.
 
 ::: {.callout-note appearance="simple" icon="false"}
 **Regress outcome on structural disadvantage indicator.**
@@ -1097,7 +1097,7 @@ cumulative_descriptives_png <- cumulative_descriptives |>
 save_as_image(cumulative_descriptives_png, path = "cumulative_descriptives.png", zoom = 3, expand = 0)
 ```
 
-# Step 1: Cumulative Disadvantage to Outcome {#cumulative-disadvantage}
+# Step 1: Cumulative Disadvantage to Outcome {#sec-step1}
 
 Now, regress each outcome onto its respective (standardized) structural
 disadvantage composite, the results can be found in
@@ -1215,7 +1215,7 @@ disadvantage_regressions_png <- disadvantage_regressions |>
 save_as_image(disadvantage_regressions_png, path = "disadvantage_regressions.png", zoom = 2, expand = 0)
 ```
 
-# Step 2: Residuals
+# Step 2: Residuals {#sec-step2}
 
 For each outcome, the residual from its Step 1 model reflects how much
 better or worse an young adult is doing than their adolescent
@@ -1266,7 +1266,7 @@ design_w3 <- svydesign(
   data    = dat_w3)
 ```
 
-# Step 3: Protective Factors
+# Step 3: Protective Factors {#sec-step3}
 
 Now, regress the residual scores on each (standardized) protective
 factor, resulting in results for depression (@tbl-step3-depression),
@@ -1468,7 +1468,7 @@ tbl_step3_health_png <- tbl_step3_health |>
 save_as_image(tbl_step3_health_png, path = paste0(fig_dir, "tbl_step3_health.png"), zoom = 2, expand = 0)
 ```
 
-# Step 4: Protective vs. Promotive
+# Step 4: Protective vs. Promotive {#sec-step4}
 
 Comparing the low- and high-disadvantage subsamples distinguishes two
 types of effects: **promotive** factors are significant regardless of

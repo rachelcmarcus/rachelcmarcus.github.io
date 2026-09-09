@@ -1,6 +1,7 @@
 ---
 title: "Baseline Warmth Data Import, Processing, and Reliability"
 date: "2026-08-10"
+bibliography: references.bib
 ---
 
 # Purpose
@@ -15,17 +16,6 @@ Warmth values of **0** are converted to `NA` during processing so that SPSS read
 
 # 1. Setup
 
-## Update the Box file path {#sec-file-paths}
-
-**This is the main section a new user should edit.** Replace only the user-specific portion of `PROJECT_ROOT` with the location of the `ff (cast.casbox )` Box folder on your computer.
-
-Everything else in this file is built from that root path. If the Box folder structure has not changed, no other path should need to be edited.
-
-**Windows example:** `"C:/Users/abc1234/Box/ff (cast.casbox )"`\
-**Mac example:** `"/Users/abc1234/Library/CloudStorage/Box-Box/ff (cast.casbox )"`
-
-Use **forward slashes** in the path, including on Windows.
-
 ```{r}
 #| label: setup
 #| include: false
@@ -34,6 +24,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 ```{r}
 #| label: file-paths
+#| include: false
 # EDIT THIS LINE: replace the user-specific portion with your own Box location.
 PROJECT_ROOT <- "C:/Users/rcm5550/Box/ff (cast.casbox )"
 
@@ -70,10 +61,11 @@ PATH_WARMTH_NEG_RELIABILITY <- file.path(
 
 ## Load required R packages
 
-These packages are used to import files, reshape the second-by-second warmth data, combine datasets, and (in the source project) export the final SPSS `.sav` file. `tidyverse` is used for file processing, reshaping, and matching. `haven` creates the SPSS dataset. `irr` is used for the ICC reliability calculation.
+These packages are used to import files, reshape the second-by-second warmth data, combine datasets, and (in the source project) export the final SPSS `.sav` file. `tidyverse` is used for file processing, reshaping, and matching. `haven` creates the SPSS dataset. `irr` is used for the reliability calculation.
 
 ```{r}
 #| label: libraries
+#| include: false
 library(tidyverse)
 library(haven)
 library(irr)
@@ -83,7 +75,7 @@ library(irr)
 
 ## Extract the couple ID from a file name {#sec-id-function}
 
-Original CARMA files are stored in couple folders such as `Couple 101/101BL_M_NEG_WH_GG.csv`. Reliability files also begin with the couple number, such as `124BL_M_POS_WH_RC.csv`.
+Original CARMA files are stored in couple folders such as `Couple 564/101BL_M_NEG_WH_FL.csv`.
 
 The function below extracts the **three-digit couple ID from the beginning of the CSV file name**.
 
@@ -481,7 +473,7 @@ ORIGINAL_WARMTH_LONG <- bind_rows(
 
 # 6. Import Reliability-Coded Warmth Files {#sec-import-reliability-files}
 
-## Identify Mom versus Partner from reliability file names
+**Identify Mom versus Partner from reliability file names**
 
 Reliability files need to be matched to the correct original Mom or Partner coding stream. Positive reliability files use names such as `124BL_M_POS_WH_RM.csv` and `133BL_P_POS_WH_RM.csv`. Negative reliability naming is less standardized, so this function recognizes several explicit Mom/Partner markers while avoiding assumptions based on fixed character positions.
 
@@ -516,7 +508,7 @@ classify_reliability_person <- function(filename_full) {
 }
 ```
 
-## Process a set of reliability files
+**Process a set of reliability files**
 
 This function sends each selected reliability CSV through the same [`process_single_warmth_file()`](#sec-single-file-function) function used for the original CARMA files. It then labels the condition, target person, and reliability coder.
 
@@ -572,7 +564,7 @@ process_reliability_files <- function(files_full, condition) {
 }
 ```
 
-## Select and import Positive reliability files
+**Select and import Positive reliability files**
 
 The Positive reliability folder is searched for CSV files. Files do not need to occupy fixed character positions; the three-digit ID is read from the beginning of the base file name, and Mom versus Partner is determined from the explicit `M` or `P` marker.
 
@@ -601,7 +593,7 @@ The Positive reliability folder is searched for CSV files. Files do not need to 
 
 ```
 
-## Select and import Negative reliability files
+**Select and import Negative reliability files**
 
 The Positive reliability folder is searched for CSV files. Files do not need to occupy fixed character positions; the three-digit ID is read from the beginning of the base file name, and Mom versus Partner is determined from the explicit `M` or `P` marker.
 
@@ -629,7 +621,7 @@ The Positive reliability folder is searched for CSV files. Files do not need to 
     )
 ```
 
-## Combine all reliability-coded observations
+**Combine all reliability-coded observations**
 
 The Positive RC and Negative RC observations are stacked into a single temporary long-form reliability dataset. One row represents one coded second from one reliability coder.
 
@@ -719,7 +711,7 @@ The quality checks are restricted to videos that actually have a reliability fil
     arrange(condition, person, ID, second)
 ```
 
-## Review the reliability samples before ICC
+**Review the reliability samples**
 
 This table shows the number of reliability-coded videos, the number of matched seconds, and the number of seconds with nonmissing warmth values from **both** coders. ICC uses only rows where both coder values are observed.
 
@@ -738,88 +730,105 @@ RELIABILITY_SAMPLE_SUMMARY <- RELIABILITY_MATCHED %>%
 knitr::kable(RELIABILITY_SAMPLE_SUMMARY, caption = "Reliability Sample Summary")
 ```
 
-# 8. Calculate Inter-Rater Reliability (ICC)
+# 8. Calculate Inter-Rater Reliability (Gwet's AC2)
 
-The primary reliability statistic is an **absolute-agreement, single-measure ICC** calculated from the [matched](#sec-match-reliability) second-by-second warmth codes. In `irr::icc()`, this is specified as a two-way model with `type = "agreement"` and `unit = "single"`, corresponding to ICC(A,1), commonly referred to as ICC(2,1).
+The primary reliability statistic is **Gwet's AC2 with linear weighting**, calculated from the [matched](#sec-match-reliability) second-by-second warmth codes. Gwet's AC2 is a chance-corrected agreement statistic for ordinal ratings and is less sensitive than Cohen's kappa to highly concentrated or imbalanced category distributions [@gwet2008; @demirhan2023; @quarfoot2016].
 
-ICC is calculated separately for **Mom Positive, Partner Positive, Mom Negative, and Partner Negative** and then all together.
+Linear weighting is used because warmth is coded on an ordered 1–7 scale. Ratings that are closer together receive more agreement "credit" than ratings that are farther apart, and disagreements are penalized proportionally to the distance between ratings. This provides a more conservative weighting approach than quadratic weighting.
 
-Rows where either coder has a missing warmth value are excluded from that condition's ICC. The output includes the ICC estimate, 95% confidence interval, p-value, number of videos, and number of complete second-by-second coder pairs used.
+Gwet's AC2 is calculated separately for **Mom Positive, Partner Positive, Mom Negative, and Partner Negative**.
+
+Rows where either coder has a missing warmth value are excluded from that condition's AC2 calculation. The output includes the AC2 estimate, weighted observed agreement, expected agreement, 95% confidence interval, *p*-value, number of videos, and number of complete second-by-second coder pairs used.
 
 ```{r}
-#| label: icc-function
-calculate_warmth_icc <- function(data) {
+#| label: ac2-function
+calculate_warmth_ac2 <- function(data) {
 
-  # Stop with a clear instruction if the ICC package is not installed.
-  if (!requireNamespace("irr", quietly = TRUE)) {
+  # Stop with a clear instruction if the irrCAC package is not installed.
+  if (!requireNamespace("irrCAC", quietly = TRUE)) {
     stop(
-      "The 'irr' package is required for ICC. Install it once with install.packages('irr'), ",
-      "then rerun this section."
-    )
+      "The 'irrCAC' package is required for Gwet's AC2. ",
+      "Install it once with install.packages('irrCAC'), ",
+      "then rerun this section.")
   }
 
   # Keep only second-level observations with a nonmissing score from both coders.
-  icc_data <- data %>%
+  ac2_data <- data %>%
     filter(!is.na(warmth_original), !is.na(warmth_reliability)) %>%
     select(warmth_original, warmth_reliability)
 
-  # ICC requires at least two complete targets.
-  if (nrow(icc_data) < 2) {
+  # Gwet's AC2 requires at least two complete observations.
+  if (nrow(ac2_data) < 2) {
     return(
       tibble(
-        ICC = NA_real_,
+        AC2 = NA_real_,
+        observed_agreement = NA_real_,
+        expected_agreement = NA_real_,
         CI_lower = NA_real_,
         CI_upper = NA_real_,
         p_value = NA_real_,
-        complete_pairs = nrow(icc_data)
-      )
-    )
+        complete_pairs = nrow(ac2_data)) )
   }
 
-  # Calculate two-way absolute-agreement, single-measure ICC.
-  icc_result <- irr::icc(
-    icc_data,
-    model = "twoway",
-    type = "agreement",
-    unit = "single",
-    conf.level = 0.95
-  )
+  # Calculate linear-weighted Gwet's AC2 for the ordered 1-7 warmth scale.
+  ac2_result <- irrCAC::gwet.ac1.raw(
+    ac2_data,
+    weights = "linear",
+    categ.labels = 1:7)
 
-  # Return the main ICC statistics in a compact one-row table.
+  # Extract the AC2 results returned by irrCAC.
+  ac2_estimate <- ac2_result$est
+
+  # Return the main AC2 statistics in a compact one-row table.
   tibble(
-    ICC = unname(icc_result$value),
-    CI_lower = unname(icc_result$lbound),
-    CI_upper = unname(icc_result$ubound),
-    p_value = unname(icc_result$p.value),
-    complete_pairs = nrow(icc_data)
-  )
+    AC2 = ac2_estimate$coeff.val,
+    observed_agreement = ac2_estimate$pa,
+    expected_agreement = ac2_estimate$pe,
+    CI_lower = as.numeric(
+      sub(
+        "^\\(([-0-9.]+),.*$",
+        "\\1",
+        ac2_estimate$conf.int)),
+    CI_upper = as.numeric(
+      sub(
+        "^\\([-0-9.]+,([-0-9.]+)\\)$",
+        "\\1",
+        ac2_estimate$conf.int)),
+    p_value = ac2_estimate$p.value,
+    complete_pairs = nrow(ac2_data))
 }
 ```
 
 ```{r}
-#| label: calculate-icc
-# Calculate ICC separately for each condition and target person.
-ICC_RESULTS <- RELIABILITY_MATCHED %>%
-  group_by(condition) %>%
-  group_modify(~ calculate_warmth_icc(.x)) %>%
+#| label: calculate-ac2
+# Calculate Gwet's AC2 separately for each condition and target person.
+AC2_RESULTS <- RELIABILITY_MATCHED %>%
+  group_by(condition, person) %>%
+  group_modify(~ calculate_warmth_ac2(.x)) %>%
   ungroup() %>%
   left_join(
     RELIABILITY_MATCHED %>%
-      group_by(condition) %>%
-      summarise(videos = n_distinct(ID), .groups = "drop"),
-    by = c("condition")
-  ) %>%
+      group_by(condition, person) %>%
+      summarise(
+        videos = n_distinct(ID),
+        .groups = "drop"),
+    by = c("condition", "person")) %>%
   select(
     condition,
+    person,
     videos,
     complete_pairs,
-    ICC,
+    AC2,
+    observed_agreement,
+    expected_agreement,
     CI_lower,
     CI_upper,
-    p_value
-  )
+    p_valu)
 
-knitr::kable(ICC_RESULTS, caption = "Inter-Rater Reliability (ICC) by Condition")
+knitr::kable(
+  AC2_RESULTS,
+  digits = 3,
+  caption = "Inter-Rater Reliability (Linear-Weighted Gwet's AC2)")
 ```
 
 # 9. Percent Agreement Reliability
@@ -836,9 +845,7 @@ As a complementary reliability metric to the [matched](#sec-match-reliability) I
       reliable = case_when(
         abs_difference <= 1 ~ 1,
         abs_difference >= 2 ~ 0,
-        TRUE ~ NA_real_
-      )
-    )
+        TRUE ~ NA_real_  ))
 
   # Calculate percent agreement separately for Mom Positive, Partner Positive,
   # Mom Negative, and Partner Negative.
@@ -853,8 +860,7 @@ As a complementary reliability metric to the [matched](#sec-match-reliability) I
       reliable_seconds = sum(reliable),
       total_seconds = n(),
       percent_agreement = reliable_seconds / total_seconds * 100,
-      .groups = "drop"
-    ) %>%
+      .groups = "drop" ) %>%
     arrange(condition)
 
   knitr::kable(PERCENT_AGREEMENT, caption = "Percent Agreement (±1 point) by Condition")
@@ -875,16 +881,13 @@ PRODUCTION_DATASET_SUMMARY <- tibble(
     "BL_P_NEG_WH",
     "BL_M_POS_WH",
     "BL_P_POS_WH",
-    "BL_WH"
-  ),
+    "BL_WH"),
   unique_IDs = c(
     n_distinct(BL_M_NEG_WH$ID),
     n_distinct(BL_P_NEG_WH$ID),
     n_distinct(BL_M_POS_WH$ID),
     n_distinct(BL_P_POS_WH$ID),
-    n_distinct(BL_WH$ID)
-  )
-)
+    n_distinct(BL_WH$ID) ))
 
 knitr::kable(PRODUCTION_DATASET_SUMMARY, caption = "Unique Couple IDs by Dataset")
 ```

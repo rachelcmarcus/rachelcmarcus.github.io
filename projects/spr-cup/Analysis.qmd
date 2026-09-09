@@ -56,7 +56,7 @@ is included but not rendered below.
 #| label: load data
 #| include: false
 library(haven)
-dat <- read_sav("C:\Users\rcm5550\Desktop\PSU OD Copy\Rachel - The Pennsylvania State University\SPR Cup 2026\Analysis\AddHealth_AllData.sav")
+dat <- read_sav("C:/Users/rcm5550/Desktop/PSU OD Copy/Rachel - The Pennsylvania State University/SPR Cup 2026/Analysis/AddHealth_AllData.sav")
 ```
 
 ```{r}
@@ -421,26 +421,24 @@ build the cumulative adversity composite in the
 ::: {.callout-note appearance="simple" icon="false"}
 **Regress outcome on structural disadvantage indicator.**
 
-outcome_disadvantage \<-
+`outcome_disadvantage <-`
 
-svyglm(outcome \~ disadvantage, design = design_w3, family = gaussian()
-)
+`svyglm(outcome ~ disadvantage, design = design_w3, family = gaussian())`
 :::
 
 ::: {.callout-note appearance="simple" icon="false"}
 **Extra standardized betas for later beta-weighted composites.**
 
-dat_w3\$outcome_disadvantage \<- coef(outcome_disadvantage)\[2\]
+`dat_w3$outcome_disadvantage <- coef(outcome_disadvantage)[2]`
 :::
 
 ::: {.callout-note appearance="simple" icon="false"}
 **Extra standardized betas and p values for predictor weight table.**
 
-outcome_disadvantageB\<- coef(outcome_disadvantage\[2\]
+`outcome_disadvantageB<- coef(outcome_disadvantage[2]`
 
-outcome_disadvantageP
-\<-summary(outcome_disadvantage)\$coefficients\["disadvantage",
-"Pr(\>\|t)"\]
+`outcome_disadvantageP`
+`<-summary(outcome_disadvantage)$coefficients["disadvantage","Pr(\>\|t\|)"\]`
 :::
 
 ::: {.callout-note appearance="minimal" icon="false"}
@@ -463,7 +461,7 @@ depression_minorityD <- svyglm(
 #save beta and p value
 dat_w3$dep_minorityD <- coef(depression_minorityD)[2]
 dep_minorityD_B <- coef(depression_minorityD)[2]
-dep_minorityD_P <-summary(depression_minorityD)$coefficients["minorityD", "Pr(>|t)"]
+dep_minorityD_P <-summary(depression_minorityD)$coefficients["minorityD", "Pr(>|t|)"]
 ```
 
 Depression Weights - School Disadvantage

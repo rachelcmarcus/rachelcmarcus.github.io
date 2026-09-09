@@ -17,17 +17,24 @@ resilience using the Add Health dataset ([@harris2013], specifically
 Waves I and III (*N* = 4,882) and can be broken down into the following
 steps:
 
--   indicators are used to build **outcome-specific adversity
-    composites** [@marquez2023]**.**
--   **regressed** on those composites [@miller-lewis2013].
--   become **continuous** **resilience scores** (better- or
-    worse-than-expected adaptation given adversity exposure).
--   [Step 3: Protective Factors]: Multilevel resilience factors
-    (individual, family, school, community) are tested as **predictors
-    of resilience**, first in the full sample.
--   and high-adversity subsamples to distinguish between **promotive
-    effects** (help regardless of adversity level) and **protective
-    effects** (buffer specifically under high adversity).
+[Step 0: Disadvantage Composites]: indicators are used to build
+**outcome-specific disadvantage composites** [@marquez2023]
+
+[Step 1: Cumulative Disadvantage to Outcome]: **regress** each outcome
+on those composites [@miller-lewis2013]
+
+[Step 2: Residuals]: Extract residuals from those regressions to create
+**continuous** **resilience scores** (better- or worse-than-expected
+adaptation given disadvantage exposure).
+
+[Step 3: Protective Factors]: Multilevel resilience factors (individual,
+family, school, community) are tested as **predictors of resilience**,
+first in the full sample.
+
+[Step 4: Protective vs. Promotive]: Create high-disadvantage subsamples
+to distinguish between **promotive effects** (help regardless of
+disadvantage level) and **protective effects** (buffer specifically
+under high disadvantage).
 
 **Load Packages**
 
@@ -300,7 +307,7 @@ analytic variable.
 ```{r}
 #| label: create descriptives table
 # ── Variable lists with display labels ────────────────────────────────────────
-adversity_vars <- c(
+disadvantage_vars <- c(
   "minorityD"          = "Minority Status",
   "school_disadv"     = "School Disadvantage",
   "econhardship"      = "Economic Hardship",
@@ -347,7 +354,7 @@ make_desc_rows <- function(var_named_vec, design, section_label) {
 }
 
 desc_tbl <- rbind(
-  make_desc_rows(adversity_vars,  design_w3, "Adversity Predictors"),
+  make_desc_rows(disadvantage_vars,  design_w3, "Disadvantage Predictors"),
   make_desc_rows(protective_vars, design_w3, "Protective Factors"),
   make_desc_rows(outcome_vars,    design_w3, "Outcomes"))
 
@@ -405,7 +412,7 @@ descriptives_png <- descriptives |>
 save_as_image(descriptives_png, path = paste0(fig_dir, "descriptives.png"), zoom = 3, expand = 0)
 ```
 
-# Step 0: Adversity Composites
+# Step 0: Disadvantage Composites {#step0}
 
 ## Individual Disadvantage Regressions
 
@@ -415,8 +422,8 @@ neighborhood subjective/census) predicting each outcome (depression,
 substance use, educational attainment, general health). Each regression
 uses the standardized outcome and standardized predictor variable, and
 each chunk stores the beta and p-value, which become the weights used to
-build the cumulative adversity composite in the
-@cumulative-adversity-composites section below.
+build the cumulative disadvantage composite in the [Step 1: Cumulative
+Disadvantage to Outcome] section below.
 
 ::: {.callout-note appearance="simple" icon="false"}
 **Regress outcome on structural disadvantage indicator.**
@@ -442,8 +449,8 @@ build the cumulative adversity composite in the
 :::
 
 ::: {.callout-note appearance="minimal" icon="false"}
-Jump to @tbl-adversity-weight-table to see the results of the individual
-disadvantage regressions.
+Jump to @tbl-disadvantage-weight-table to see the results of the
+individual disadvantage regressions.
 :::
 
 **Depression**
@@ -861,13 +868,13 @@ health_censnbhd_B <- coef(health_cens_nbhd_disadv)[2]
 health_censnbhd_P <- summary(health_cens_nbhd_disadv)$coefficients["Zcens_nbhd_disadv", "Pr(>|t|)"]
 ```
 
-## Adversity Weights
+## Disadvantage Weights
 
 The code below utilizes the extracted coefficients and *p*-values and
-creates a presentation-ready table (@tbl-adversity-weight-table).
+creates a presentation-ready table (@tbl-disadvantage-weight-table).
 
 ```{r}
-#| label: create adversity weight table
+#| label: create disadvantage weight table
 
 weight_summary <- data.frame(
   Predictor = c("Minority Status", "School Disadvantage", "Economic Hardship",
@@ -927,7 +934,7 @@ table_weights <- flextable(weight_summary) |>
 ```
 
 ```{r}
-#| label: tbl-adversity-weight-table
+#| label: tbl-disadvantage-weight-table
 #| echo: false
 
 table_weights
@@ -941,7 +948,7 @@ effect specifically for substance use (*b* = -0.40) and education (*b*
 outcome-specific composite below.
 
 ```{r}
-#| label: save-adversity-weight-table-png
+#| label: save-disadvantage-weight-table-png
 #| include: false
 table_weights_png <- table_weights |>
   font(fontname = "Calibri", part = "all") |>
@@ -1051,7 +1058,7 @@ cumadv_rows <- do.call(rbind, lapply(names(cumadv_vars), function(v) {
 cumulative_descriptives <- flextable(cumadv_rows) |>
   set_header_labels(Variable = "Outcome", M = "M", SD = "SD", Range = "Range") |>
   add_header_row(
-    values    = c("", "Cumulative Adversity Composites"),
+    values    = c("", "Cumulative Disadvantage Composites"),
     colwidths = c(1, 3)                              # was c(1, 2)
   ) |>
   theme_apa() |>
@@ -1090,35 +1097,35 @@ cumulative_descriptives_png <- cumulative_descriptives |>
 save_as_image(cumulative_descriptives_png, path = "cumulative_descriptives.png", zoom = 3, expand = 0)
 ```
 
-# Step 1: Cumulative Adversity to Outcome
+# Step 1: Cumulative Disadvantage to Outcome {#cumulative-disadvantage}
 
 Now, regress each outcome onto its respective (standardized) structural
 disadvantage composite, the results can be found in
-@tbl-adversityregressions.
+@tbl-disadvantage-regressions.
 
 **Step 1 Regressions**
 
 ```{r}
 #| label: step1 regressions
-# Model: Adversity → CES-D Depression 
+# Model: Disadvantage → CES-D Depression 
 model_depression <- svyglm(
   ZcesD_sum ~ Zcumadv_depression,
   design = design_w3,
   family = gaussian() )
 
-# Model: Adversity → Substance Use
+# Model: Disadvantage → Substance Use
 model_substance <- svyglm(
   Zsubuse_W3 ~ Zcumadv_substance,
   design = design_w3,
   family = gaussian() )
 
-# Model: Adversity → Education Attainment
+# Model: Disadvantage → Education Attainment
 model_education <- svyglm(
   Zedattain_W3 ~ Zcumadv_education,
   design = design_w3,
   family = gaussian() )
 
-# Model: Adversity → General Health
+# Model: Disadvantage → General Health
 model_health <- svyglm(
   Zgenhealth_W3 ~ Zcumadv_health,
   design = design_w3,
@@ -1146,14 +1153,14 @@ fmt_step1 <- function(model, var) {
 
 # create dataframe for regression table
 step1_tbl <- data.frame(
-  Predictor     = "Cumulative Adversity",
+  Predictor     = "Cumulative Disadvantage",
   Depression    = fmt_step1(model_depression, "Zcumadv_depression"),
   Substance_Use = fmt_step1(model_substance,  "Zcumadv_substance"),
   Education     = fmt_step1(model_education,  "Zcumadv_education"),
   Health        = fmt_step1(model_health,     "Zcumadv_health"))
 
 # create table for step 1 regressions
-adversity_regressions <- flextable(step1_tbl) |>
+disadvantage_regressions <- flextable(step1_tbl) |>
   set_header_labels(
     Predictor     = "",
     Depression    = "Depression",
@@ -1178,10 +1185,10 @@ adversity_regressions <- flextable(step1_tbl) |>
 ```
 
 ```{r}
-#| label: tbl-adversityregressions
+#| label: tbl-disadvantage-regressions
 #| echo: false
 
-adversity_regressions
+disadvantage_regressions
 ```
 
 Structural disadvantage significantly predicts all four Wave III
@@ -1194,10 +1201,10 @@ residuals from these models (the gap between predicted and observed
 outcomes) become the resilience scores used in Step 3.
 
 ```{r}
-#| label: save-adversityregressions-png
+#| label: save-disadvantageregressions-png
 #| include: false
 
-adversity_regressions_png <- adversity_regressions |>
+disadvantage_regressions_png <- disadvantage_regressions |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
   fontsize(size = 20, part = "header") |>
@@ -1205,7 +1212,7 @@ adversity_regressions_png <- adversity_regressions |>
   width(j = 1, width = 2.0) |>
   width(j = 2:5, width = 1.4)
 
-save_as_image(adversity_regressions_png, path = "adversity_regressions.png", zoom = 2, expand = 0)
+save_as_image(disadvantage_regressions_png, path = "disadvantage_regressions.png", zoom = 2, expand = 0)
 ```
 
 # Step 2: Residuals
@@ -1484,11 +1491,11 @@ disadvantage**
 
 ```{r}
 #| label: disadvantage splits
-# save outcome-specific adversity splits as variables in dat_w3
-dat_w3$adversity_depression <- quantcut(dat_w3$Zcumadv_depression, c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
-dat_w3$adversity_substance  <- quantcut(dat_w3$Zcumadv_substance,  c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
-dat_w3$adversity_education  <- quantcut(dat_w3$Zcumadv_education,  c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
-dat_w3$adversity_health     <- quantcut(dat_w3$Zcumadv_health,     c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
+# save outcome-specific disadvantage splits as variables in dat_w3
+dat_w3$disadvantage_depression <- quantcut(dat_w3$Zcumadv_depression, c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
+dat_w3$disadvantage_substance  <- quantcut(dat_w3$Zcumadv_substance,  c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
+dat_w3$disadvantage_education  <- quantcut(dat_w3$Zcumadv_education,  c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
+dat_w3$disadvantage_health     <- quantcut(dat_w3$Zcumadv_health,     c(0, .33, .66, 1), lab = c("lo", "mid", "hi"))
 
 # rerun design with split variables added
 design_w3 <- svydesign(
@@ -1509,7 +1516,7 @@ model_depression_lo <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_depression == "lo"),
+  design = subset(design_w3, disadvantage_depression == "lo"),
   family = gaussian() )
 
 model_depression_hi <- svyglm(
@@ -1518,7 +1525,7 @@ model_depression_hi <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_depression == "hi"),
+  design = subset(design_w3, disadvantage_depression == "hi"),
   family = gaussian() )
 
 # ── Substance Use ──────────────────────────────────────────────────────────────
@@ -1528,7 +1535,7 @@ model_substance_lo <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_substance == "lo"),
+  design = subset(design_w3, disadvantage_substance == "lo"),
   family = gaussian() )
 
 model_substance_hi <- svyglm(
@@ -1537,7 +1544,7 @@ model_substance_hi <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_substance == "hi"),
+  design = subset(design_w3, disadvantage_substance == "hi"),
   family = gaussian() )
 
 # ── Education ──────────────────────────────────────────────────────────────────
@@ -1547,7 +1554,7 @@ model_education_lo <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect + 
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_education == "lo"),
+  design = subset(design_w3, disadvantage_education == "lo"),
   family = gaussian() )
 
 model_education_hi <- svyglm(
@@ -1556,7 +1563,7 @@ model_education_hi <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_education == "hi"),
+  design = subset(design_w3, disadvantage_education == "hi"),
   family = gaussian() )
 
 # ── Health ─────────────────────────────────────────────────────────────────────
@@ -1566,7 +1573,7 @@ model_health_lo <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_health == "lo"),
+  design = subset(design_w3, disadvantage_health == "lo"),
   family = gaussian() )
 
 model_health_hi <- svyglm(
@@ -1575,7 +1582,7 @@ model_health_hi <- svyglm(
     Zopt_hopeful + Zselfesteem + Zself_efficacy +
     Zparentchild_rel + Zschoolconnect +
     bio_sexD + Zwave3age,
-  design = subset(design_w3, adversity_health == "hi"),
+  design = subset(design_w3, disadvantage_health == "hi"),
   family = gaussian() )
 ```
 
@@ -1621,8 +1628,8 @@ make_protect_table <- function(model_full, model_lo, model_hi, outcome_label) {
   tbl <- data.frame(
     Variable       = var_labels[protective_vars],
     Full_Sample    = sapply(protective_vars, \(v) fmt_coef(model_full, v)),
-    Low_Adversity  = sapply(protective_vars, \(v) fmt_coef(model_lo,   v)),
-    High_Adversity = sapply(protective_vars, \(v) fmt_coef(model_hi,   v)),
+    Low_Disadvantage  = sapply(protective_vars, \(v) fmt_coef(model_lo,   v)),
+    High_Disadvantage = sapply(protective_vars, \(v) fmt_coef(model_hi,   v)),
     row.names = NULL
   )
   
@@ -1630,8 +1637,8 @@ make_protect_table <- function(model_full, model_lo, model_hi, outcome_label) {
     set_header_labels(
       Variable       = "Protective Factor",
       Full_Sample    = "Full Sample",
-      Low_Adversity  = "Low Adversity",
-      High_Adversity = "High Adversity"
+      Low_Disadvantage  = "Low Disadvantage",
+      High_Disadvantage = "High Disadvantage"
     ) |>
     add_header_row(
       values    = c("", outcome_label),
@@ -1671,10 +1678,11 @@ tbl_compare_depression
 ```
 
 Community connectedness and self-efficacy show classic protective
-patterns for depression: non-significant or weaker in the low-adversity
-group but significant in the high-adversity group (β = 0.08 and 0.07,
-respectively). Self-esteem and parent-child relationship are promotive,
-remaining significant across both subsamples.
+patterns for depression: non-significant or weaker in the
+low-disadvantage group but significant in the high-disadvantage group (β
+= 0.08 and 0.07, respectively). Self-esteem and parent-child
+relationship are promotive, remaining significant across both
+subsamples.
 
 ```{r}
 #| label: save-compare-depression-png
@@ -1699,10 +1707,11 @@ tbl_compare_substance
 ```
 
 Community connectedness is promotive for substance use, remaining
-significant in both the low- and high-adversity groups (β = -0.07 and
+significant in both the low- and high-disadvantage groups (β = -0.07 and
 -0.08). Parent-child relationship, by contrast, is protective —
-non-significant in the low-adversity group (β = 0.02) but the strongest
-predictor in the high-adversity group (β = 0.16, *p* \< .001).
+non-significant in the low-disadvantage group (β = 0.02) but the
+strongest predictor in the high-disadvantage group (β = 0.16, *p* \<
+.001).
 
 ```{r}
 #| label: save-compare-substance-png
@@ -1728,9 +1737,9 @@ tbl_compare_education
 
 Community integration, self-efficacy, and school connectedness are
 promotive for educational attainment, remaining significant across both
-low- and high-adversity groups. School connectedness's effect is notably
-stronger under high adversity (β = 0.15 vs. 0.10), suggesting it also
-carries a protective component alongside its promotive one.
+low- and high-disadvantage groups. School connectedness's effect is
+notably stronger under high disadvantage (β = 0.15 vs. 0.10), suggesting
+it also carries a protective component alongside its promotive one.
 
 ```{r}
 #| label: save-compare-education-png
@@ -1756,10 +1765,10 @@ tbl_compare_health
 
 Optimism/hopefulness and community connectedness show protective
 patterns for general health: both are non-significant in the
-low-adversity group but emerge as significant in the high-adversity
-group (β = 0.10 and 0.06, respectively). Self-esteem is promotive,
-remaining significant and substantial in both groups (β = 0.21 and
-0.09).
+low-disadvantage group but emerge as significant in the
+high-disadvantage group (β = 0.10 and 0.06, respectively). Self-esteem
+is promotive, remaining significant and substantial in both groups (β =
+0.21 and 0.09).
 
 ```{r}
 #| label: save-compare-health-png

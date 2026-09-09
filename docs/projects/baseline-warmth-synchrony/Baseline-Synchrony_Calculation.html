@@ -3911,7 +3911,7 @@ border-radius: 4px;
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../projects/spr-cup/Analysis.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">SPR Cup Analysis</span></a>
+ <span class="menu-text">Resilience Analysis</span></a>
   </div>
 </li>
           <li class="sidebar-item sidebar-item-section">
@@ -3983,56 +3983,20 @@ border-radius: 4px;
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/01_indicator_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Indicator Profiles</span></a>
+  <a href="../../projects/add-health/Profiles.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Profiles</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/01a_indicator_profiles_zscore.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Indicator Profiles (Z-Score)</span></a>
+  <a href="../../projects/add-health/Odds-Ratios.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Odds Ratios</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/02_predictor_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Predictor Profiles</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/03_OR_graphs.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Odds Ratio Graphs</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/04_OR_graphs_asp_scales.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">OR Graphs (ASP Scales)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/05_scales_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Scales Profiles</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/06_interaction.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Interaction</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/07_OR_graphsline.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">OR Graphs (Line)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/08_BCH.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">BCH Analysis</span></a>
+  <a href="../../projects/add-health/Interaction-and-Comparisons.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interaction &amp; Comparisons</span></a>
   </div>
 </li>
       </ul>
@@ -4123,7 +4087,7 @@ border-radius: 4px;
 
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: packages</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
@@ -4149,7 +4113,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="synchrony-calculation">Synchrony Calculation</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to compute time-lagged cross-correlation synchrony between dyad members</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>compute_blpwh_sync <span class="ot">&lt;-</span> <span class="cf">function</span>(df, <span class="at">lag =</span> <span class="dv">20</span>, <span class="at">n_boot =</span> <span class="dv">1000</span>) {</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  </span>
@@ -4234,7 +4198,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="max-synchrony">Max Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#blpwh_sync_results &lt;- unnest(blpwh_sync_id, blpwh_sync_ccf)</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract max synchrony for each couple</span></span>
@@ -4271,7 +4235,7 @@ border-radius: 4px;
 <h3 class="anchored" data-anchor-id="max-synchrony-interpreation">Max Synchrony Interpreation</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add interpretation columns</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_max_interpret <span class="ot">&lt;-</span> blpwh_sync_max <span class="sc">%&gt;%</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
@@ -4328,7 +4292,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="descriptives">Descriptives</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Descriptive statistics across all couples</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_max_interpret_summary <span class="ot">&lt;-</span> blpwh_sync_max_interpret <span class="sc">%&gt;%</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
@@ -4366,7 +4330,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="plot-max-synchrony">Plot Max Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Distribution of maximum synchrony values</span></span>
@@ -4392,7 +4356,7 @@ border-radius: 4px;
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_maxsync.png&quot;</span>, <span class="at">plot =</span> blpwh_hist_maxsync, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Distribution of lags where max occurs</span></span>
@@ -4419,7 +4383,7 @@ border-radius: 4px;
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_lag.png&quot;</span>, <span class="at">plot =</span> blpwh_hist_lag, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Scatterplot: max correlation vs lag</span></span>
@@ -4448,7 +4412,7 @@ border-radius: 4px;
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_scatter_sync.png&quot;</span>, <span class="at">plot =</span> blpwh_scatter_sync, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -4456,7 +4420,7 @@ border-radius: 4px;
 <h3 class="anchored" data-anchor-id="grid-panel">Grid Panel</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show multiple couples in a grid</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_ccfplot <span class="ot">&lt;-</span> <span class="cf">function</span>(blpwh_sync_results, <span class="at">n_couples =</span> <span class="dv">12</span>) {</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Select first n couples</span></span>
@@ -4496,7 +4460,7 @@ border-radius: 4px;
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_sync_ccfplot.png&quot;</span>, <span class="at">plot =</span> blpwh_sync_ccfplot_p, <span class="at">width =</span> <span class="dv">13</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -4506,7 +4470,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="calculate-average">Calculate Average</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute mean CCF profile across all couples</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_avgccf <span class="ot">&lt;-</span> blpwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(lag) <span class="sc">%&gt;%</span></span>
@@ -4524,7 +4488,7 @@ border-radius: 4px;
 <h3 class="anchored" data-anchor-id="plot-average">Plot Average</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot average CCF</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_avgccf_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(blpwh_sync_avgccf, <span class="fu">aes</span>(<span class="at">x =</span> lag, <span class="at">y =</span> mean_acf)) <span class="sc">+</span></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">&quot;dashed&quot;</span>, <span class="at">color =</span> <span class="st">&quot;gray50&quot;</span>) <span class="sc">+</span></span>
@@ -4552,7 +4516,7 @@ border-radius: 4px;
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_sync_avgccf_plot.png&quot;</span>, <span class="at">plot =</span> blpwh_sync_avgccf_plot, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -4562,7 +4526,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="concurrent-synchrony">Concurrent Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract concurrent (lag = 0)</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_concurrent <span class="ot">&lt;-</span> blpwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(lag <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span></span>
@@ -4713,7 +4677,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="time-lagged">Time-Lagged</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="do">##uses first sig lag</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_timetolag <span class="ot">&lt;-</span> blpwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>
@@ -4734,7 +4698,7 @@ border-radius: 4px;
 <h3 class="anchored" data-anchor-id="strongest-time-lag">Strongest Time-Lag</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">#uses strongest sig lag</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_summary <span class="ot">&lt;-</span> blpwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>
@@ -4769,7 +4733,7 @@ border-radius: 4px;
 <h2 class="anchored" data-anchor-id="summary-table---ids">Summary Table - IDs</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gt)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5518,7 +5482,7 @@ height: 0px !important;
 <h2 class="anchored" data-anchor-id="summary-table---all">Summary Table - All</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a summary statistics table instead of individual couples</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_summarystats <span class="ot">&lt;-</span> blpwh_sync_summary <span class="sc">%&gt;%</span></span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
@@ -6069,7 +6033,7 @@ height: 0px !important;
 <h1>Compare Approaches</h1>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare the three approaches side-by-side for a few couples</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>blpwh_sync_compare <span class="ot">&lt;-</span> blpwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>
@@ -6659,7 +6623,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="synchrony-calculation-1">Synchrony Calculation</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to compute time-lagged cross-correlation synchrony between dyad members</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>compute_blnwh_sync <span class="ot">&lt;-</span> <span class="cf">function</span>(df, <span class="at">lag =</span> <span class="dv">20</span>, <span class="at">n_boot =</span> <span class="dv">1000</span>) {</span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  </span>
@@ -6744,7 +6708,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="max-synchrony-1">Max Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#blnwh_sync_results &lt;- unnest(blnwh_sync_id, blnwh_sync_ccf)</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract max synchrony for each couple</span></span>
@@ -6781,7 +6745,7 @@ Approach 3: Strongest
 <h3 class="anchored" data-anchor-id="max-synchrony-interpretation">Max Synchrony Interpretation</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add interpretation columns</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_max_interpret <span class="ot">&lt;-</span> blnwh_sync_max <span class="sc">%&gt;%</span></span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
@@ -6959,7 +6923,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="descriptives-1">Descriptives</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Descriptive statistics across all couples</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_max_interpret_summary <span class="ot">&lt;-</span> blnwh_sync_max_interpret <span class="sc">%&gt;%</span></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
@@ -6997,7 +6961,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="plot-max-synchrony-1">Plot Max Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Distribution of maximum synchrony values</span></span>
@@ -7023,7 +6987,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_maxsync.png&quot;</span>, <span class="at">plot =</span> blnwh_hist_maxsync, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Distribution of lags where max occurs</span></span>
@@ -7050,7 +7014,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_lag.png&quot;</span>, <span class="at">plot =</span> blnwh_hist_lag, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Scatterplot: max correlation vs lag</span></span>
@@ -7079,7 +7043,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_scatter_sync.png&quot;</span>, <span class="at">plot =</span> blnwh_scatter_sync, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -7087,7 +7051,7 @@ Approach 3: Strongest
 <h3 class="anchored" data-anchor-id="grid-panel-1">Grid Panel</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show multiple couples in a grid</span></span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_ccfplot <span class="ot">&lt;-</span> <span class="cf">function</span>(blnwh_sync_results, <span class="at">n_couples =</span> <span class="dv">12</span>) {</span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Select first n couples</span></span>
@@ -7127,7 +7091,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_ccfplot.png&quot;</span>, <span class="at">plot =</span> blnwh_sync_ccfplot_p, <span class="at">width =</span> <span class="dv">13</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -7137,7 +7101,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="calculate-average-1">Calculate Average</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute mean CCF profile across all couples</span></span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_avgccf <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(lag) <span class="sc">%&gt;%</span></span>
@@ -7177,7 +7141,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_avgccf_plot.png&quot;</span>, <span class="at">plot =</span> blnwh_sync_avgccf_plot, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -7185,7 +7149,7 @@ Approach 3: Strongest
 <h3 class="anchored" data-anchor-id="plot-average-1">Plot Average</h3>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Heatmap showing all couples&#39; CCF profiles. Couples are identified only by</span></span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co"># their row order (not their real ID) so no participant identifiers appear</span></span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="co"># on the public site, and the y-axis is left unlabeled for the same reason.</span></span>
@@ -7222,7 +7186,7 @@ Approach 3: Strongest
 </div>
 </div>
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">&quot;../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_heatmap.png&quot;</span>, <span class="at">plot =</span> blnwh_sync_heatmap_p, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">10</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -7232,7 +7196,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="concurrent-synchrony-1">Concurrent Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract concurrent (lag = 0)</span></span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_concurrent <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(lag <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span></span>
@@ -7340,7 +7304,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="time-lagged-synchrony">Time Lagged Synchrony</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract time-lagged (lag != 0)</span></span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_lagged <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span> <span class="fu">filter</span>(lag <span class="sc">!=</span> <span class="dv">0</span>)</span>
 <span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -7482,7 +7446,7 @@ Approach 3: Strongest
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="do">##uses first sig lag</span></span>
 <span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_timetolag <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>
@@ -7504,7 +7468,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="summary-table---id">Summary Table - ID</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co">#uses strongest sig lag</span></span>
 <span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_summary <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>
@@ -7538,7 +7502,7 @@ Approach 3: Strongest
 <h2 class="anchored" data-anchor-id="summary-table---all-1">Summary Table - All</h2>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gt)</span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -8284,7 +8248,7 @@ height: 0px !important;
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a summary statistics table instead of individual couples</span></span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_summarystats <span class="ot">&lt;-</span> blnwh_sync_summary <span class="sc">%&gt;%</span></span>
 <span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
@@ -8831,7 +8795,7 @@ height: 0px !important;
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare the three approaches side-by-side for a few couples</span></span>
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>blnwh_sync_compare <span class="ot">&lt;-</span> blnwh_sync_results <span class="sc">%&gt;%</span></span>
 <span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">significant =</span> <span class="fu">as.vector</span>(significant)) <span class="sc">%&gt;%</span></span>

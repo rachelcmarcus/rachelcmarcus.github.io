@@ -6,7 +6,7 @@ Applied research projects from my doctoral training in developmental psychology 
 
 ## Projects
 
-- **SPR Cup Analysis** — cumulative risk modeling with Add Health survey data (SPSS data cleaning, R analysis)
+- **Resilience Analysis** — cumulative risk modeling with Add Health survey data (SPSS data cleaning, R analysis)
 - **Baseline Warmth & Synchrony** — CARMA-coded parent-infant warmth import, reliability, and synchrony calculation (R)
 - **Still Face Processing** — raw behavioral event log import and episode-boundary validation for the Still Face paradigm (R)
 - **Add Health: Profiles & Predictors** — latent class profile and predictor analysis (R)

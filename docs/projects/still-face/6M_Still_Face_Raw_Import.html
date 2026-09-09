@@ -3988,7 +3988,7 @@ border-radius: 4px;
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../projects/spr-cup/Analysis.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">SPR Cup Analysis</span></a>
+ <span class="menu-text">Resilience Analysis</span></a>
   </div>
 </li>
           <li class="sidebar-item sidebar-item-section">
@@ -4060,56 +4060,20 @@ border-radius: 4px;
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/01_indicator_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Indicator Profiles</span></a>
+  <a href="../../projects/add-health/Profiles.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Profiles</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/01a_indicator_profiles_zscore.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Indicator Profiles (Z-Score)</span></a>
+  <a href="../../projects/add-health/Odds-Ratios.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Odds Ratios</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/02_predictor_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Predictor Profiles</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/03_OR_graphs.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Odds Ratio Graphs</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/04_OR_graphs_asp_scales.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">OR Graphs (ASP Scales)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/05_scales_profiles.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Scales Profiles</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/06_interaction.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Interaction</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/07_OR_graphsline.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">OR Graphs (Line)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../projects/add-health/08_BCH.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">BCH Analysis</span></a>
+  <a href="../../projects/add-health/Interaction-and-Comparisons.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interaction &amp; Comparisons</span></a>
   </div>
 </li>
       </ul>
@@ -4191,7 +4155,7 @@ border-radius: 4px;
 <p>Load required packages</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Core data-wrangling verbs (filter, mutate, pivot_wider, the pipe, etc)</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Reads .xlsx files -- needed for the raw event log export</span></span>
@@ -4224,7 +4188,7 @@ Tip
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Full list of episode marker codes</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>EPISODE_MARKERS <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;BASELINE 15 S REUNION NO COPE&quot;</span>,</span>
@@ -4244,7 +4208,7 @@ Tip
 <p><code>category</code> groups related behaviors together for readability and organization. <code>var_stem</code> is the short suffix that ends up in the final prefixed variable names (see the <span class="citation" data-cites="score-spec">@score-spec</span> section below).</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>BEHAVIOR_REFERENCE <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>Subject,  <span class="sc">~</span>Behavior,                          <span class="sc">~</span>category,               <span class="sc">~</span>var_stem,</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4318,7 +4282,7 @@ Tip
 <p><strong>Get the subject ID from a file name</strong></p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Every event log file name starts with the subject&#39;s numeric ID</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># (e.g. &quot;567_SFF_SF6M - Raw Data.xlsx&quot; -&gt; &quot;567&quot;)</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4341,7 +4305,7 @@ Tip
 <p><strong>Import one subject’s file and run basic checks</strong></p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This function imports raw data file and conducts initial data cleaning</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>import_event_log <span class="ot">&lt;-</span> <span class="cf">function</span>(filename_full) {</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4446,7 +4410,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to mark start and stop of each episode</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>get_episode_anchors <span class="ot">&lt;-</span> <span class="cf">function</span>(data) {</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4533,7 +4497,7 @@ Important
 <p><code>episode</code> records which episode each row belongs to: <code>1</code> = Baseline, <code>2</code>= Still Face, <code>3</code> = Reunion. Rows that fall in the transition buffers between episodes (including the boundary marker rows themselves) are expected to come out as <code>NA</code> to be correctly excluded from scoring.</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to assign each row of data to the correct episode</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>assign_episode <span class="ot">&lt;-</span> <span class="cf">function</span>(data, anchors) {</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
@@ -4555,7 +4519,7 @@ Important
 <h1>5. Put it together: import + anchor + label one subject</h1>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to fully import, clean, and label each raw data file</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>import_and_label_one_subject <span class="ot">&lt;-</span> <span class="cf">function</span>(filename_full) {</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4581,7 +4545,7 @@ Important
 <p>We then create four small functions that every score in the final dataset is built from: - total duration of a behavior - count of a behavior - overlap between two behaviors (for joint attention) - check for whether an episode had any real coding at allTotal seconds one subject spent in one behavior during one episode.</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to compute total duration of behavior in each episodie</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>compute_duration <span class="ot">&lt;-</span> <span class="cf">function</span>(data, subj, behavior, episode_num) {</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
@@ -4597,7 +4561,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function for how m any times behavior occurs in an episode</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>compute_count <span class="ot">&lt;-</span> <span class="cf">function</span>(data, subj, behavior, episode_num) {</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
@@ -4613,7 +4577,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function for the overlap (in seconds) between two behaviors to score joint attention (i.e. mom talking/touching WHILE infant looks at mom) </span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>compute_overlap_duration <span class="ot">&lt;-</span> <span class="cf">function</span>(data, subject_a, behavior_a, subject_b, behavior_b, episode) {</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4652,7 +4616,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to confirm at least one behavior was coded during the episode, a quality check: Distinguishes &quot;episode was coded and at least one behavior happened&quot; resulting in behaviors not coded as 0 from &quot;episode was never coded at all&quot; and then behaviors are coded as NA</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>episode_has_codes <span class="ot">&lt;-</span> <span class="cf">function</span>(data, episode_num) {</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
@@ -4665,7 +4629,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Lookup: episode number -&gt; the variable-name prefix used for that episode.</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 6M Still Face - Baseline: v2sfbl; 6M Still Face - Still Face: v2sfsf; 6M Still Face - Reunion: v2sfre; </span></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>EPISODE_PREFIX <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">`</span><span class="at">1</span><span class="st">`</span> <span class="ot">=</span> <span class="st">&quot;v2sfbl&quot;</span>, <span class="st">`</span><span class="at">2</span><span class="st">`</span> <span class="ot">=</span> <span class="st">&quot;v2sfsf&quot;</span>, <span class="st">`</span><span class="at">3</span><span class="st">`</span> <span class="ot">=</span> <span class="st">&quot;v2sfre&quot;</span>)</span>
@@ -4698,7 +4662,7 @@ Important
 <p><code>SCORE_SPEC</code> is the master list that drives the long-to-wide reshape in the next section. Each row has: “final variable name = subject’s behavior, in this episode, as this metric (duration or count).”</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>SCORE_SPEC <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>var_name,          <span class="sc">~</span>subject,  <span class="sc">~</span>behavior,                          <span class="sc">~</span>episode, <span class="sc">~</span>metric,</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4825,7 +4789,7 @@ Important
 <p>This is the long-to-wide transformation step: for one subject, look up every value listed in <code>SCORE_SPEC</code>, then pivot those values into one wide row.</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to transform data from long to wide </span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>compute_spec_values_one_subject <span class="ot">&lt;-</span> <span class="cf">function</span>(data) {</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  SCORE_SPEC <span class="sc">%&gt;%</span></span>
@@ -4853,7 +4817,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to compute scores, using the functions created above</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>compute_raw_scores_one_subject <span class="ot">&lt;-</span> <span class="cf">function</span>(data) {</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4893,7 +4857,7 @@ Important
 <p><strong>Episode start/end times</strong></p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to add episode start and end times as new rows in dataset</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>add_episode_boundary_times <span class="ot">&lt;-</span> <span class="cf">function</span>(scores, data, anchors) {</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4961,7 +4925,7 @@ Important
 <h1>9. Validate the merged raw dataset</h1>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function for data validation</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>validate_raw_dataset <span class="ot">&lt;-</span> <span class="cf">function</span>(dataset) {</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4986,7 +4950,7 @@ Important
 <h1>10. Run it: import, score, and merge every subject</h1>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Find every raw event log file (one per subject, inside their ID folder).</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>files_full <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">path =</span> PATH_EVENT_LOGS,</span>
@@ -5069,7 +5033,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Running log of blank/empty template rows found and dropped, across</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># every subject -- rebuilt fresh each time the pipeline runs.</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>BLANK_ROW_LOG <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">ID =</span> <span class="fu">character</span>(), <span class="at">file =</span> <span class="fu">character</span>(), <span class="at">n_blank_rows =</span> <span class="fu">integer</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -5077,7 +5041,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For every file: import + label it, then compute its one-row wide score</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># set, then stack every subject&#39;s row into a single dataset</span></span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>SF_RAW <span class="ot">&lt;-</span> <span class="fu">map_dfr</span>(files_final, <span class="cf">function</span>(filename_full) {</span>
@@ -5095,7 +5059,7 @@ Important
 </div>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the blank-row log in the knitted output</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">nrow</span>(BLANK_ROW_LOG) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(BLANK_ROW_LOG, <span class="at">caption =</span> <span class="st">&quot;Subjects with Blank Rows Dropped&quot;</span>)</span>
@@ -5128,7 +5092,7 @@ Important
 <h1>11. Episode boundary check</h1>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pull  the boundary-time columns out of SF_RAW, reshape them from</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># wide (one column per episode/boundary) to long (one row per</span></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># ID x episode), and compute each episode&#39;s duration</span></span>
@@ -5783,7 +5747,7 @@ Important
 <p>This portfolio page does not syntax for final variable scoring (e.g. total duration across episodes, proportions scores) That syntax was written SPSS syntax file, per request of lead behavioral coder.</p>
 <div class="cell">
 <details open class="code-fold">
-<summary>Show code</summary>
+<summary>code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A one-row summary: how many subjects made it into SF_RAW, and how many</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># variables (columns) it has (minus 1 to exclude the ID column itself).</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">tibble</span>(</span>

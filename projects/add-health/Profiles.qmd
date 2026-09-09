@@ -66,11 +66,11 @@ engagement [@duell2019a; @duell2021a; @fryt2021a].
 To jump straight to figures:
 
 -   indicator probabilities/mean: negative risk-taking
-    (@fig-indicator-profileneg) and (@fig-indicator-profilepos)
--   indicator within-class average: negative (@fig-standardized-neg) and
-    positive (@fig-standardized-pos)
--   predictor profiles: @fig-profile-standardized
--   age distribution of each profile: @fig-age-distribution
+    [@fig-indicator-profileneg] and [@fig-indicator-profilepos]
+-   indicator within-class average: negative [@fig-standardized-neg] and
+    positive [@fig-standardized-pos]
+-   predictor profiles: [@fig-profile-standardized]
+-   age distribution of each profile: [@fig-age-distribution]
 
 **Data Import**
 

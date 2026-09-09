@@ -30,31 +30,47 @@ on the [Odds Ratios](Odds-Ratios.qmd) page; effect-modification and
 BH-corrected robustness checks live on [Interaction Effects &
 Comparisons](Interaction-and-Comparisons.qmd).
 
-# 1. Indicator Profiles
+# Indicator Profiles
 
 ### Overview
 
 These panels show the 4-class latent profile solution's indicator
-profiles — the risk and protective indicators that defined the classes
-themselves, as distinct from the predictor and covariate profiles in the
-sections that follow. Fit indices favored the four-profile solution:
-AIC/BIC improvements became marginal beyond four classes, the
-five-profile solution failed to replicate (a local maximum), and the
-four-profile solution showed adequate entropy (\> .80) with
-theoretically coherent classes (LPA conducted in LatentGOLD; Vermunt &
-Magidson, 2005).
+profiles from the negative and positive risk-taking indicators. Fit
+indices favored the four-profile solution: AIC/BIC improvements became
+marginal beyond four classes, the five-profile solution failed to
+replicate (a local maximum), and the four-profile solution showed
+adequate entropy (\> .80) with theoretically coherent classes (LPA
+conducted in LatentGOLD; [@vermunt2005]).
 
-The four classes are C1 (High PR–Low NR, 35.6%), C2 (Low PR–Low NR,
-33.7%), C3 (Low PR–High NR, 15.8%), and C4 (High PR–High NR, 14.9%). PR
-= positive risk-taking, NR = negative risk-taking. Alcohol problems
-functioned as a near-binary separator: both C1 and C2 reported
-essentially no alcohol problems, while C3 and C4 reported substantially
-elevated problem counts. Within each of those two broad groupings,
-positive risk indicators (sports, school activities, friend disclosure,
-romantic involvement) were the primary source of further differentiation
-— adolescents with comparably low negative risk nonetheless occupied
-meaningfully distinct profiles with respect to positive risk engagement
-([@duell2019], [@duell2021],[@fryt2021]).
+::: {.callout-tip appearance="minimal" icon="false"}
+**PR** = **p**ositive **r**isk-taking; **NR** = **n**egative
+**r**isk-taking
+:::
+
+The four profiles are:
+
+-   C1 (High PR–Low NR, 35.6%)
+-   C2 (Low PR–Low NR, 33.7%)
+-   C3 (Low PR–High NR, 15.8%)
+-   C4 (High PR–High NR, 14.9%)
+
+Alcohol problems functioned as a near-binary separator: both **C1 and C2
+reported essentially no alcohol problems**, while **C3 and C4 reported
+substantially elevated problem counts**. Within each of those two broad
+groupings, positive risk indicators (sports, school activities, friend
+disclosure, romantic involvement) were the primary source of further
+differentiation. However, adolescents with comparably low negative risk
+occupied meaningfully distinct profiles with respect to positive risk
+engagement [@duell2019a; @duell2021a; @fryt2021a].
+
+To jump straight to figures:
+
+-   indicator probabilities/mean: negative risk-taking
+    (@fig-indicator-profileneg) and (@fig-indicator-profilepos)
+-   indicator within-class average: negative (@fig-standardized-neg) and
+    positive (@fig-standardized-pos)
+-   predictor profiles: @fig-profile-standardized
+-   age distribution of each profile: @fig-age-distribution
 
 **Data Import**
 
@@ -71,13 +87,47 @@ data_path <- "C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Rach
 
 profile_raw <- read_excel(data_path, sheet = "profile R")
 pairs_raw   <- read_excel(data_path, sheet = "paired comparisons")
+
+# Relabel for visual ease
+profile_indicator_recode <- c(
+  "Had whole cigarrette"           = "Cigarette",
+  "Skip school (no excuse)"        = "Skipped school",
+  "Lied about whereabouts"         = "Lied about whereabouts",
+  "Night out (no permission)"      = "Night out(unsanctioned)",
+  "Done dangerous dare"            = "Dangerous dare",
+  "Not always wear seatbelt"       = "No seatbelt",
+  "Ever Drive drunk"               = "Drove Drunk",
+  "No contraceptives used"         = "Risky Sex",
+  "Stole Anything"                 = "Theft",
+  "Serious Physical Fight"         = "Fight",
+  "Problems from alcohol"          = "Alcohol Problems",
+  "Sport Teams"                    = "Sport Teams",
+  "Extracurriculars"               = "School Activities",
+  "Don't avoid problems"           = "Problem Approach",
+  "Disclosed problem to friend"    = "Friend Disclosure",
+  "Initiate romantic relationship" = "Initiated Relationship")
+
+profile_raw <- profile_raw %>%
+  mutate(Indicators = recode(str_trim(Indicators), !!!profile_indicator_recode))
+
+# Continuous indicators (within-class means, not probabilities/proportions).
+# Moved up here (rather than defined down in indicator-profilecreate) so the
+# raw data-view table below can also flag them with an "(M)" suffix.
+indicator_continuous_fig <- c("Alcohol Problems", "Problem Approach",
+                               "Sport Teams", "School Activities")
 ```
 
 ```{r}
 #| label: data-view-profile-raw
-# View first 6 rows of profiles
-gt(head(profile_raw, 6)) |>
-  tab_header(title = "profile R — indicator probabilities/means by class")|>
+#| echo: false
+# View first 6 rows of profiles — continuous indicators get an "(M)" suffix
+# for display only; profile_raw itself keeps the plain labels everything
+# downstream matches on.
+gt(profile_raw %>%
+     mutate(Indicators = if_else(Indicators %in% indicator_continuous_fig,
+                                  paste0(Indicators, " (M)"),
+                                  Indicators))) |>
+  tab_header(title = "indicator probabilities/means by class")|>
   fmt_number(columns = where(is.numeric), decimals = 2)
 ```
 
@@ -109,6 +159,25 @@ indicator_colors <- cluster_colors
 # multiplies back to show true scale. Edit here if any continuous value > 3.
 scale_factor <- 3
 
+# Label indicators
+indicator_label_map <- c(
+  WSDalc               = "Alcohol Problems",
+  cigwhole             = "Cigarette",
+  skipschool           = "Skipped school",
+  liewhere             = "Lied about whereabouts",
+  awayhome             = "Night out(unsanctioned)",
+  dare_dum             = "Dangerous dare",
+  seatbelt             = "No seatbelt",
+  drvdrunk             = "Drove Drunk",
+  BC_dum               = "Risky Sex",
+  steal12M             = "Theft",
+  phyfight             = "Fight",
+  WSDsport             = "Sport Teams",
+  WSDactivity          = "School Activities",
+  avoidproblems        = "Problem Approach",
+  disclose             = "Friend Disclosure",
+  intitaterelationship = "Initiated Relationship")
+
 # Continuous indicators — values can exceed 1 and read off the right axis
 continuous_indicators <- c(
   "Problems from alcohol",
@@ -122,8 +191,8 @@ continuous_indicators <- c(
 #   → binary values multiplied by scale_factor to fit primary axis
 # This arrangement puts the 0-3 axes adjacent in the middle of the combined figure.
 
-neg_continuous <- c("Problems from alcohol")
-pos_continuous <- c("Sport Teams", "Extracurriculars", "Don't avoid problems")
+neg_continuous <- c("Alcohol Problems")
+pos_continuous <- c("Sport Teams", "School Activities", "Problem Approach")
 
 profile_long <- profile_raw %>%
   pivot_longer(
@@ -136,7 +205,7 @@ profile_long <- profile_raw %>%
                    "Cluster1" = "C1", "Cluster2" = "C2",
                    "Cluster3" = "C3", "Cluster4" = "C4"),
     cluster    = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
-    Indicators = factor(Indicators, levels = unique(profile_raw$Indicators)),
+    Indicators = factor(Indicators, levels = unique(Indicators)),
     # Rescale for plotting:
     #   Negative: continuous / scale_factor (plots on 0-1 axis, reads off right 0-3)
     #   Positive: binary * scale_factor     (plots on 0-3 axis, reads off right 0-1)
@@ -160,6 +229,7 @@ pairs <- pairs_raw %>%
     p_value   = as.numeric(`p-value`),
     cluster_a = as.integer(clustera),
     cluster_b = as.integer(clusterb),
+    Indicator = recode(Indicator, !!!indicator_label_map),
     pair      = paste0("C", cluster_a, " vs. C", cluster_b),
     p_adj     = p.adjust(p_value, method = "BH"),
     sig       = p_adj < .05)
@@ -175,27 +245,33 @@ within each alcohol-problem grouping.
 
 ```{r}
 #| label: data-view-pairs-bh
-gt(head(pairs, 6)) |> tab_header(title = "After: BH-corrected pairwise comparisons")
+gt(head(pairs)) |> tab_header(title = "After: BH-corrected pairwise comparisons")
 ```
 
 ### Profile Figure
 
-@fig-indicator-profileneg: Negative Indicators Left y-axis (0–1): binary
-indicators, read as probabilities. Right y-axis (0–3): continuous
-indicators, read as means.
-
 ```{r}
 #| label: indicator-profilecreate
 
-# Figure caption
-fig_caption <- str_wrap(
-  paste(
-    "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).",
-    "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
-    "Continuous bars are rescaled to the primary axis for display;"
-  ),
-  width = 72)
+# Builds axis labels as plotmath expressions so only the "M" renders in
+# italics (the label text and parentheses stay plain). Named by the label
+# text itself so ggplot matches each break by name — not position — which
+# matters since p_neg/p_pos (and the line/z-score panels) each only show a
+# subset of the full indicator list.
+label_with_M <- function(labels_vec) {
+  exprs <- lapply(labels_vec, function(lbl) {
+    if (lbl %in% indicator_continuous_fig) {
+      bquote(.(lbl) * " (" * italic(M) * ")")
+    } else {
+      bquote(.(lbl))
+    }
+  })
+  out <- as.expression(exprs)
+  names(out) <- labels_vec
+  out
+}
 
+axis_labels_fig <- label_with_M(levels(factor(profile_long$Indicators)))
 
 # make_panel() takes explicit axis config so Negative and Positive can differ.
 
@@ -222,9 +298,9 @@ make_panel <- function(risk_label,
       position = position_dodge(width = dodge_width),
       width    = bar_width) +
     scale_fill_manual(values = indicator_colors, labels = cluster_labels,
-                      name = NULL) +
+                      name = NULL) + 
+    scale_x_discrete(labels = axis_labels_fig) +
     scale_y_continuous(
-      #name   = left_name,
       limits = left_lim,
       breaks = left_breaks,
       labels = number_format(accuracy = 0.1),
@@ -236,7 +312,11 @@ make_panel <- function(risk_label,
         labels    = number_format(accuracy = 0.1)
      )
     ) +
-    labs(title = paste(risk_label, "Risk Indicators"), y = NULL, caption = fig_caption) +
+    labs(title = paste(risk_label, "Risk Indicators"),
+         y = NULL, 
+         caption = str_wrap(
+           "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).Right y-axis (0\u20133) = continuous indicators (within-class mean). Continuous bars are rescaled to the primary axis for display.", 
+           width = 150)) +
     base_theme +
     theme(
       # adjust panel format from base theme
@@ -251,13 +331,10 @@ make_panel <- function(risk_label,
       plot.caption = element_text(
                       hjust = 0,
                       lineheight = 1.2,
-                      size   = 14),
-      
+                      size   = 16),
       plot.title  = element_text(
-        size = title_size, face = "bold",  hjust = 0.5),
-      
-          plot.margin = margin(20, 0, 40, 100) )
-}
+        size = title_size, face = "bold",  hjust = 0.5))
+      }
 
 # Negative: left=binary(0-1), right=continuous(0-3)
 p_neg <- make_panel(
@@ -280,24 +357,21 @@ p_pos <- make_panel(
   right_breaks  = seq(0, 1, by = 0.2))
 ```
 
-@fig-indicator-profilepos: Positive Indicators Left y-axis (0–3):
-continuous indicators, read as means. Right y-axis (0–1): binary
-indicators, read as probabilities.
-
 ```{r}
 #| label: fig-indicator-profileneg
 #| fig-width: 18
-#| fig-height: 7
+#| fig-height: 8
+#| echo: false
 print(p_neg)
 ```
 
 ```{r}
 #| label: fig-indicator-profilepos
 #| fig-width: 18
-#| fig-height: 7
+#| fig-height: 8
+#| echo: false
 print(p_pos)
 ```
-
 
 ```{r}
 #| label: indicator-profilesave
@@ -307,13 +381,13 @@ ggsave(
   filename = file.path(fig_indicator, "profile_figure_neg.png"),
      device = agg_png,
   plot     = p_neg,
-  width    = 14, height = 6, dpi = fig_dpi, units = "in")
+  width    = 18, height = 8, dpi = fig_dpi, units = "in")
 
 ggsave(
   filename = file.path(fig_indicator, "profile_figure_pos.png"),
   plot     = p_pos,    
   device = agg_png,
-  width    = 14, height = 6, dpi = fig_dpi, units = "in")
+  width    = 18, height = 8, dpi = fig_dpi, units = "in")
 ```
 
 Sports participation, school activity involvement, and friend disclosure
@@ -329,6 +403,7 @@ pairwise comparisons significant).
 
 ```{r}
 #| label: tbl-nonsig
+#| warning: false
 nonsig <- pairs %>%
   filter(sig == FALSE) %>%
   select(Indicator, pair, p_value, p_adj) %>%
@@ -341,8 +416,6 @@ kable(nonsig,
 ```
 
 ### Significant Comparisons by Profile
-
-@tbl-sig-cluster: Total Significant Pairwise Comparisons by Cluster
 
 ```{r}
 #| label: tbl-sig-cluster
@@ -363,8 +436,6 @@ kable(by_cluster,
 
 ### Significant Comparisons by Indicator
 
-@tbl-sig-indicator: Total Significant Pairwise Comparisons by Indicator
-
 ```{r}
 #| label: tbl-sig-indicator
 #| warning: false
@@ -382,138 +453,7 @@ kable(by_indicator,
       caption   = "Count of significant and non-significant pairwise comparisons (BH-corrected, FDR < .05) by indicator.")
 ```
 
-### Line Profile Figure
-
-Create line profile figure for negative risk indicators
-(@fig-indicator-neg-profile) and positive risk indicators
-(@fig-indicator-pos-profile).
-
-```{r}
-#| label: fig-indicator-profileneg-line
-# Figure caption
-fig_caption_line <- str_wrap(
-  paste(
-    "Note. Left y-axis (0\u20131) = binary indicators (probability of behavior).",
-    "Right y-axis (0\u20133) = continuous indicators (within-class mean).",
-    "Continuous values are rescaled to the primary axis for display;"
-  ),
-  width = 72
-)
-
-# Panel-building function
-make_panel_line <- function(risk_label,
-                             left_name = "", left_lim, left_breaks,
-                             sec_transform, right_name = "", right_breaks) {
-
-  df_line <- profile_long %>% filter(Risk == risk_label)
-
-  ggplot(df_line, aes(x = Indicators, y = value_plot,
-                       color = cluster, group = cluster)) +
-
-    # ---- reference gridlines between indicators ----
-    geom_vline(
-      xintercept = seq(1.5, length(unique(df_line$Indicators)) - 0.5, by = 1),
-      color      = "gray90",
-      linewidth  = 0.4
-    ) +
-
-    # ---- line + point geoms ----
-    geom_line(linewidth = 3) +
-    geom_point(size = 4) +
-
-    # ---- color scale ----
-    scale_color_manual(values = indicator_colors, labels = cluster_labels,
-                        name = NULL) +
-
-    # ---- y-axis (primary + secondary) ----
-    scale_y_continuous(
-      limits   = left_lim,
-      breaks   = left_breaks,
-      labels   = number_format(accuracy = 0.1),
-      expand   = expansion(mult = c(0, 0.03)),
-      sec.axis = sec_axis(
-        transform = sec_transform,
-        name      = right_name,
-        breaks    = right_breaks,
-        labels    = number_format(accuracy = 0.1)
-      )
-    ) +
-
-    # ---- labels ----
-    labs(title = paste(risk_label, "Risk Indicators"), y = NULL,
-         caption = fig_caption_line) +
-
-    # ---- theme ----
-    base_theme +
-    theme(
-      axis.text.x        = element_text(angle = 35, hjust = 1,
-                                         size = axis_text_size),
-      axis.title.y.right = element_text(size = axis_title_size,
-                                         color = "gray40"),
-      legend.position    = "none",
-      plot.title         = element_text(size = title_size, face = "bold",
-                                         hjust = 0.5),
-      plot.caption = element_text(
-                      hjust = 0,
-                      lineheight = 1.2,
-                      size   = 14),
-                      
-      plot.margin        = margin(12, 0, 20, 85))
-}
-
-# Build panels
-
-# Negative: left = binary (0-1), right = continuous (0-3)
-p_line_neg <- make_panel_line(
-  risk_label    = "Negative",
-  left_lim      = c(0, 1.08),
-  left_breaks   = seq(0, 1, by = 0.2),
-  sec_transform = ~ . * scale_factor,
-  right_breaks  = seq(0, scale_factor, by = 1))
-
-# Positive: left = continuous (0-3), right = binary (0-1)
-p_line_pos <- make_panel_line(
-  risk_label    = "Positive",
-  left_lim      = c(0, scale_factor * 1.08),
-  left_breaks   = seq(0, scale_factor, by = 1),
-  sec_transform = ~ . / scale_factor,
-  right_breaks  = seq(0, 1, by = 0.2))
-```
-
-```{r}
-#| label: fig-indicator-neg-profile
-#| echo: false
-#| width: 24
-#| height: 8
-print(p_line_neg)
-```
-
-```{r}
-#| label: fig-indicator-pos-profile
-#| echo: false
-#| width: 24
-#| height: 8
-print(p_line_pos)
-```
-
-```{r}
-#| label: fig-indicator-profileneg-line-save
-#| include: false
-
-ggsave(
-  filename = file.path(fig_indicator, "profile_figure_line_neg.png"),
-  device   = agg_png,
-  plot     = p_line_neg,
-  width    = 24, height = 8, dpi = fig_dpi, units = "in")
-
-ggsave(
-  filename = file.path(fig_indicator, "profile_figure_line_pos.png"),
-  device   = agg_png,
-  plot     = p_line_pos,
-  width    = 24, height = 8, dpi = fig_dpi, units = "in")
-```
-
-# 2. Indicator Profiles — Standardized (Z-Score)
+# Indicator Profiles - Standardized
 
 ### Standardized Profile Panels
 
@@ -612,8 +552,7 @@ zscore_long <- sav_scaled %>%
   pivot_longer(
     cols      = all_of(indicator_vars),
     names_to  = "variable",
-    values_to = "z_score"
-  ) %>%
+    values_to = "z_score") %>%
   group_by(`clu#`, variable) %>%
   summarise(mean_z = mean(z_score, na.rm = TRUE), .groups = "drop") %>%
   mutate(
@@ -623,7 +562,6 @@ zscore_long <- sav_scaled %>%
     Risk       = indicator_risk_panel[variable],
     label      = factor(label, levels = indicator_label_map[c(neg_order, pos_order)]) )
 ```
-
 
 ### Legend Labels
 
@@ -684,8 +622,7 @@ make_zscore_panel <- function(risk_label) {
     mutate(mean_z = case_when(
       mean_z >  1.0 ~  1.1,
       mean_z < -0.5 ~ -0.6,
-      TRUE          ~  mean_z
-    ))
+      TRUE          ~  mean_z))
 
   # Create plot
   ggplot(panel_data, aes(x = label, y = mean_z, fill = cluster)) +
@@ -693,30 +630,24 @@ make_zscore_panel <- function(risk_label) {
    geom_vline(
     xintercept = seq(1.5, length(panel_order) - 0.5, by = 1),
     color      = "gray63",
-    linewidth  = .8
-  ) +
+    linewidth  = .8) +
     geom_col(
       position = position_dodge(width = dodge_width),
-      width    = bar_width
-    ) +
+      width    = bar_width) +
     scale_fill_manual(
       values = zscore_colors,
       labels = cluster_labels_z,
-      name   = NULL
-    ) +
+      name   = NULL ) +
+    scale_x_discrete(labels = label_with_M(panel_order)) +
     scale_y_continuous(
       limits = c(-.6, 1.1),
-     # breaks = seq(-.5, 1.0, by = 0.5),
-    #  labels = number_format(accuracy = 0.1),
-    breaks = c(-0.5,  0, 0.5, 1.0),
+      breaks = c(-0.5,  0, 0.5, 1.0),
   labels = c("Below -0.5", "0.0", "0.5", "Above 1.0"),
-      expand = expansion(mult = c(0.02, 0.02))
-    ) + 
+      expand = expansion(mult = c(0.02, 0.02))) + 
     labs(
       title   = paste(risk_label, "Risk-Taking Indicators"),
       y       = "Mean (Standardized)",
-      caption = "Mean standardized (z-scored) indicator values by latent class. Values below −0.5 or above 1.0 are capped for display."
-    ) +
+      caption = str_wrap("Mean standardized (z-scored) indicator values by latent class. Values below −0.5 or above 1.0 are capped for display.", width = 150)) +
     base_theme +
     theme(
       axis.text.x     = element_text(angle = 30, hjust = 1,
@@ -724,10 +655,8 @@ make_zscore_panel <- function(risk_label) {
        plot.caption = element_text(
                       hjust = 0,
                       lineheight = 1.2,
-                      size   = 14),
-      legend.position = "none", 
-       plot.margin       = margin(40, 0, 40, 100)
-    )
+                      size   = 16),
+      legend.position = "none")
 }
 
 # Run function for each indicator set
@@ -737,16 +666,16 @@ p_zpos <- make_zscore_panel("Positive")
 
 ```{r}
 #| label: fig-standardized-neg
-#| fig-width: 14
-#| fig-height: 7
+#| fig-width: 18
+#| fig-height: 8
 #| echo: false
 print(p_zneg)  
 ```
 
 ```{r}
 #| label: fig-standardized-pos
-#| fig-width: 14
-#| fig-height: 7
+#| fig-width: 18
+#| fig-height: 8
 #| echo: false
 
 print(p_zpos)
@@ -761,7 +690,7 @@ ggsave(
   filename = file.path(fig_indicator, "zscore_profile_neg.png"),
   device   = agg_png,
   plot     = p_zneg,
-  width    = 14, height = 8, dpi = fig_dpi, units = "in",
+  width    = 18, height = 8, dpi = fig_dpi, units = "in",
   bg       = "transparent")
 
 # Save positive panel
@@ -769,11 +698,11 @@ ggsave(
   filename = file.path(fig_indicator, "zscore_profile_pos.png"),
   device   = agg_png,
   plot     = p_zpos,
-  width    = 14, height = 8, dpi = fig_dpi, units = "in",
+  width    = 18, height = 8, dpi = fig_dpi, units = "in",
   bg       = "transparent")
 ```
 
-# 3. Predictor Profiles
+# Predictor Profiles
 
 #### Overview
 
@@ -913,21 +842,20 @@ p_profile <- ggplot(profile_df, aes(x = display, y = value, fill = cluster)) +
     labels = number_format(accuracy = 0.01)) +  
   labs(
     title   = "ASP and Covariate Levels Across Profiles",
-    caption = "Note. Age, Peer Substance Use, Pubertal Timing, and Autonomy Supportive Parenting were standardized (M = 0, SD = 1). Sex dummy-coded (0 = male, 1 = female); % Male shown as raw proportion." ) +
+    caption = str_wrap("Note. Age, Peer Substance Use, Pubertal Timing, and Autonomy Supportive Parenting were standardized (M = 0, SD = 1). Sex dummy-coded (0 = male, 1 = female); % Male shown as raw proportion.", width = 150)) +
   base_theme +
   theme(legend.position = "top",    
         plot.caption = element_text(
                       hjust = 0,
                       lineheight = 1.2,
-                      size   = 14)) +
+                      size   = 16)) +
   guides(fill = guide_legend(nrow = 1))
 ```
 
 ```{r}
 #| label: fig-profile-standardized
-#| fig-cap: "Note. Age, Peer Substance Use, Pubertal Timing, and Autonomy Supportive Parenting were standardized (M = 0, SD = 1). Sex dummy-coded (0 = male, 1 = female); % Male shown as raw proportion."
-#| fig-width: 14
-#| fig-height: 7
+#| fig-width: 18
+#| fig-height: 8
 #| echo: false
 
 print(p_profile)
@@ -938,11 +866,10 @@ print(p_profile)
 #| include: false
 
 ggsave(file.path(fig_predictor, "Predictor_Profile_Standardized.png"),
-       plot = p_profile, width = 13, height = 6.5,
+       plot = p_profile, width = 18, height = 8,
        dpi = fig_dpi, units = "in",
        bg = "transparent")
 ```
-
 
 Older adolescents and adolescents with earlier pubertal timing were
 overrepresented in the two alcohol-problem classes (C3, C4), consistent
@@ -981,23 +908,25 @@ p_age <- ggplot(age_df, aes(x = cluster, y = proportion, fill = age_group)) +
     title   = "Age Distribution by Cluster",
     caption = str_wrap(
       "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top).",
-      width = 72) ) +
+      width = 150) ) +
     or_theme +
   theme(
     axis.title.x    = element_blank(),
     legend.position = "bottom" , 
+    legend.text     = element_text(size = 14),
+    legend.title    = element_text(size = 15, face = "bold"),
+    legend.key.size = unit(1.1, "lines"),
      plot.caption = element_text(
                       hjust = 0,
                       lineheight = 1.2,
-                      size   = 14)) +
-  guides(fill = guide_legend(nrow = 2))
+                      size   = 16)) +
+  guides(fill = guide_legend(nrow =1))
 ```
 
 ```{r}
 #| label: fig-age-distribution
-#| fig-cap: "Note. Stacked bars show proportion within each age group per cluster (sum to 1.0). Ordered youngest (bottom) to oldest (top)."
 #| fig-width: 18
-#| fig-height: 7
+#| fig-height: 8
 #| echo: false
 print(p_age)
 ```
@@ -1006,7 +935,7 @@ print(p_age)
 #| label: age-plot-save
 #| include: false
 ggsave(file.path(fig_predictor, "Age_Distribution.png"),
-       plot = p_age, width = 14, height = 7,
+       plot = p_age, width = 18, height = 8,
        dpi = fig_dpi, units = "in",
        bg = "transparent")
 ```

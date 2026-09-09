@@ -3,6 +3,7 @@ title: "Interaction Effects & BH-Corrected Comparisons"
 toc: true
 toc-depth: 3
 code-fold: true
+bibliography: references.bib
 ---
 
 ```{r}
@@ -10,53 +11,60 @@ code-fold: true
 #| include: false
 source("_setup.R")
 library(gt)      # used for the data-view tables added in this consolidation
+library(stringr) #for wrap of captions
 ```
 
 # Overview
 
-This page covers two robustness checks on the profile-membership findings from [Odds Ratios](Odds-Ratios.qmd): whether the ASP-profile association is moderated by sex or age, and a side-by-side view of BH-corrected indicator- and predictor-level comparisons. Each section below defines its own local `tidy_params()`/`apply_bh_cap()` (a Quarto document each render independently, so these can't be imported from Odds-Ratios.qmd's Helper Functions the way they can within that single file) -- the logic is identical to the versions there.
+This page covers two robustness checks on the profile-membership findings from [Odds Ratios](Odds-Ratios.qmd):
 
-**A bug fix made in this consolidation:** the original `06_interaction.qmd` computed which comparisons were significant against the reference class using `ifelse(clustera == 1, cluster_b, cluster_a)` -- but `cluster_b`/`cluster_a` (with an underscore) were never defined anywhere in that file; the actual columns are `clustera`/`clusterb` (no underscore), as used two lines earlier in the same chunk. This would have thrown an "object not found" error on render. Fixed to `ifelse(clustera == 1, clusterb, clustera)` in both the ASP\\*Sex and ASP\\*Age figure chunks below.
+1.  whether the autonomy supportive parenting to profile association is moderated by biological sex or child age, and
+2.  a side-by-side view of BH-corrected indicator- and predictor-level comparisons
 
-# 1. Interaction Effects
+In @sec-interaction, the ASP-predictor association is tested for moderation by sex and age. In @sec-bh-comparisons, Benjamini-Hochberg (BH) corrected indicator- and predictor-level comparisons are shown side by side.
 
-## Overview
+# Interaction Effects {#sec-interaction}
 
-Tests whether the ASP-predictor association shown in [Odds Ratios](Odds-Ratios.qmd) differs by biological sex or age -- i.e., whether autonomy-supportive parenting predicts class membership differently for boys vs. girls, or younger vs. older adolescents, rather than having a uniform effect across the sample. A regression with the four demographic covariates and ASP was run first, then the two interaction terms (ASP x sex, ASP x age) were added.
-
-## Data Import
+Tests whether the ASP-predictor association shown in [Odds Ratios](Odds-Ratios.qmd) differs by biological sex or age -- i.e., whether autonomy-supportive parenting predicts class membership differently for boys vs. girls, or younger vs. older adolescents, rather than having a uniform effect across the sample. A regression with the four demographic covariates and autonomy suppportive parenting (ASP) was run first, then the two interaction terms (ASP x sex, ASP x age) were added.
 
 Interaction-effect parameters and paired comparisons, by reference class, are read in from the project's Excel results workbook. Import code is included but not rendered below.
 
+::: {.callout-note appearance="simple" icon="false"}
+The code for this section is collapsed by default, but can be expanded individually for each section or all together with the toggle on the upper right.
+:::
+
 ```{r}
 #| label: import-interaction
-#| echo: false
+#| include: false
 c1_params_raw <- read_excel(data_path, sheet = "interaction parameters (c1)")
 c3_params_raw <- read_excel(data_path, sheet = "interaction parameters (c3)")
 c1_pairs_raw  <- read_excel(data_path, sheet = "int paired comparisons (c1)")
 c3_pairs_raw  <- read_excel(data_path, sheet = "int paired comparisons (c3)")
 ```
 
+# Results Import 
+
+**Raw Results Import**
 ```{r}
 #| label: data-view-int-raw
-gt(head(c1_params_raw, 6)) |> tab_header(title = "interaction parameters (c1)")
+# Preview raw import
+gt(c1_params_raw) |> tab_header(title = "interaction parameters (c1)")
 ```
 
-
-## Wrangle Parameter Sheets
-
+**Clean Results Import**
 ```{r}
 #| label: wrangle-params-interaction
+# Add labels for predictors
 pred_labels <- c(
-  "female"       = "Sex (Female vs. Male)",
+  "bio_sexD"       = "Sex (Female vs. Male)",
   "Zwave1age"    = "Age",
   "Zpeer_subuse" = "Peer Substance Use",
   "pub_timing"   = "Pubertal Timing",
   "Zasp"         = "Autonomy Supportive Parenting",
   "ZaspXbio_sexD" =	"Autonomy Supportive Parenting * Child Sex",
-  "ZaspXZwave1age" =	"Autonomy Supportive Parenting * Child Age"
-)
+  "ZaspXZwave1age" =	"Autonomy Supportive Parenting * Child Age")
 
+# Create function to clean data import
 tidy_params <- function(raw, cluster_cols) {
   raw %>%
     rename_with(~ "predictor_var", 1) %>%
@@ -64,8 +72,7 @@ tidy_params <- function(raw, cluster_cols) {
     pivot_longer(
       cols      = all_of(cluster_cols),
       names_to  = "cluster_raw",
-      values_to = "log_odds"
-    ) %>%
+      values_to = "log_odds" ) %>%
     mutate(
       predictor_label = recode(predictor_var, !!!pred_labels),
       log_odds        = as.numeric(log_odds),
@@ -73,19 +80,19 @@ tidy_params <- function(raw, cluster_cols) {
                           "Cluster1" = "C1", "Cluster2" = "C2",
                           "Cluster3" = "C3", "Cluster4" = "C4"),
       cluster         = factor(cluster, levels = c("C1", "C2", "C3", "C4")),
-      OR              = exp(log_odds)
-    ) %>%
+      OR              = exp(log_odds) ) %>%
     select(predictor_label, predictor_var, cluster, log_odds, OR, omnibus_p)
 }
 
+# Apply the cleaning function to the C1-reference parameter sheet
 c1_params <- tidy_params(c1_params_raw, c("Cluster1", "Cluster2", "Cluster3", "Cluster4"))
 ```
 
-
-## BH Correction on Pairwise Comparisons
+## BH Correction on Pairwise Comparisons {#sec-int-bh}
 
 ```{r}
 #| label: bh-pairs-interaction
+# Create function to do BH correction
 apply_bh_cap <- function(raw) {
   raw %>%
     rename(predictor = Covariate, p_value = `p-value`) %>%
@@ -93,26 +100,33 @@ apply_bh_cap <- function(raw) {
     mutate(
       p_value = as.numeric(p_value),
       p_adj   = p.adjust(p_value, method = "BH"),
-      sig     = p_adj < .05
-    )
+      sig     = p_adj < .05 )
 }
 
+# Apply BH correction to the C1-reference paired comparisons
 c1_pairs <- apply_bh_cap(c1_pairs_raw)
 ```
 
+**Cleaned Data**
+
 ```{r}
 #| label: data-view-int-tidy
-gt(head(c1_params, 8)) |> tab_header(title = "After: tidy_params() output, interaction parameters")
+gt(c1_params) |> tab_header(title = "data after custom function to clean output")
 ```
 
-Neither interaction reached significance: ASP x sex, Wald = 1.45, *p* = .69; ASP x age, Wald = 4.32, *p* = .23. This means the ASP-profile association shown on the Odds Ratios page holds equally for males and females, and equally across the adolescent age range studied -- higher ASP shifts profile membership toward C1 (High PR-Low NR) to the same degree regardless of the adolescent's sex or age. This suggests parenting's role in shaping risk-taking profiles is not confined to a particular developmental window within adolescence, nor does it operate through sex-differentiated pathways (Branje, 2018).
+Neither interaction reached significance: ASP x sex, Wald = 1.45, *p* = .69; ASP x age, Wald = 4.32, *p* = .23. This means the ASP-profile association shown on the Odds Ratios page holds equally for males and females, and equally across the adolescent age range studied -- higher ASP shifts profile membership toward C1 (High PR-Low NR) to the same degree regardless of the adolescent's sex or age. This suggests parenting's role in shaping risk-taking profiles is not confined to a particular developmental window within adolescence, nor does it operate through sex-differentiated pathways [@branje2018].
 
-## Figure: ASP*Sex - C1 Reference
+## Autonomy-Supportive Parenting × Sex
+
 ```{r}
-#| label: fig-c1-aspsex
+#| label: c1-aspsex
+#| code-fold: true
+#| code-summary: "C1 graph code"
 
+# Filter to this predictor
 c1_sex <- c1_params %>% filter(predictor_var == "ZaspXbio_sexD")
 
+# Cluster(s) significantly different from the reference (for asterisk labels)
 ref_sig <- c1_pairs %>%
   filter(predictor == "ZaspXbio_sexD",
          clustera == 1 | clusterb == 1,
@@ -120,6 +134,7 @@ ref_sig <- c1_pairs %>%
   mutate(other = ifelse(clustera == 1, clusterb, clustera)) %>%
   pull(other)                          # cluster numbers sig different from C1
 
+# Significant pairwise differences not involving the reference (for caption)
 other_sig <- c1_pairs %>%
   filter(predictor == "ZaspXbio_sexD",
          clustera != 1, clusterb != 1,
@@ -127,12 +142,13 @@ other_sig <- c1_pairs %>%
   mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
   pull(pair)                           # non-reference sig pairs for caption
 
+# Add asterisk labels and their y-position
 c1_sex <- c1_sex %>%
   mutate(
     ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
-    ast_y     = OR + max(OR) * ast_nudge_pct
-  )
+    ast_y     = OR + max(OR) * ast_nudge_pct )
 
+# Plot text: title, axis labels, caption
 plot_title   <- "Autonomy Supportive Parenting * Child Sex"
 x_label      <- "Reference: C1"
 y_label      <- y_lab    # from formatting chunk
@@ -142,7 +158,9 @@ fig_caption  <- if (length(other_sig) > 0) {
               }  else {
                   "No additional pairwise differences were significant after BH correction."
  }
-p <- ggplot(c1_sex, aes(x = cluster, y = OR, fill = cluster)) +
+
+# Build the plot
+p_c1_sex <- ggplot(c1_sex, aes(x = cluster, y = OR, fill = cluster)) +
   geom_col(width = bar_width, alpha = bar_alpha,
             linewidth = bar_outline_lwd) +
   geom_hline(yintercept = 1, color = ref_line_color,
@@ -154,20 +172,38 @@ p <- ggplot(c1_sex, aes(x = cluster, y = OR, fill = cluster)) +
   scale_fill_manual(values = cluster_colors) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
                      labels = number_format(accuracy = 0.1)) +
-  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
-  or_theme
-
-ggsave(file.path(fig_interactions, "aspXsex_OR_C1.png"),
-      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+  labs(title = plot_title, x = x_label, y = y_label,
+       caption = str_wrap(fig_caption, width = 90)) +
+ or_theme + theme(legend.position = "none")
 ```
 
-
-### Figure: ASP*Age - C1 Reference
 ```{r}
-#| label: fig-c1-aspage
+#| label: c1-aspsex-save
+#| include: false
 
+ggsave(file.path(fig_interactions, "aspXsex_OR_C1.png"),
+      plot = p_c1_sex, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+```{r}
+#| label: fig-c1-aspsex
+#| echo: false
+#| fig-width: 14
+#| fig-height: 8
+print(p_c1_sex)
+```
+
+## Autonomy-Supportive Parenting × Age
+
+```{r}
+#| label: c1-aspage
+#| code-fold: true
+#| code-summary: "C1 graph code"
+
+# Filter to this predictor
 c1_age <- c1_params %>% filter(predictor_var == "ZaspXZwave1age")
 
+# Cluster(s) significantly different from the reference (for asterisk labels)
 ref_sig <- c1_pairs %>%
   filter(predictor == "ZaspXZwave1age",
          clustera == 1 | clusterb == 1,
@@ -175,6 +211,7 @@ ref_sig <- c1_pairs %>%
   mutate(other = ifelse(clustera == 1, clusterb, clustera)) %>%
   pull(other)                          # cluster numbers sig different from C1
 
+# Significant pairwise differences not involving the reference (for caption)
 other_sig <- c1_pairs %>%
   filter(predictor == "ZaspXZwave1age",
          clustera != 1, clusterb != 1,
@@ -182,12 +219,14 @@ other_sig <- c1_pairs %>%
   mutate(pair = paste0("C", clustera, " vs. C", clusterb)) %>%
   pull(pair)                           # non-reference sig pairs for caption
 
+# Add asterisk labels and their y-position
 c1_age <- c1_age %>%
   mutate(
     ast_label = ifelse(as.integer(cluster) %in% ref_sig, "*", ""),
     ast_y     = OR + max(OR) * ast_nudge_pct
   )
 
+# Plot text: title, axis labels, caption
 plot_title   <- "Autonomy Supportive Parenting * Child Age"
 x_label      <- "Reference: C1"
 y_label      <- y_lab    # from formatting chunk
@@ -197,7 +236,9 @@ fig_caption  <- if (length(other_sig) > 0) {
               }  else {
                   "No additional pairwise differences were significant after BH correction."
  }
-p <- ggplot(c1_age, aes(x = cluster, y = OR, fill = cluster)) +
+
+# Build the plot
+p_c1_age <- ggplot(c1_age, aes(x = cluster, y = OR, fill = cluster)) +
   geom_col(width = bar_width, alpha = bar_alpha,
             linewidth = bar_outline_lwd) +
   geom_hline(yintercept = 1, color = ref_line_color,
@@ -209,70 +250,135 @@ p <- ggplot(c1_age, aes(x = cluster, y = OR, fill = cluster)) +
   scale_fill_manual(values = cluster_colors) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.18)),
                      labels = number_format(accuracy = 0.1)) +
-  labs(title = plot_title, x = x_label, y = y_label, caption = fig_caption) +
-  or_theme
-
-ggsave(file.path(fig_interactions, "aspXage_OR_C1.png"),
-      plot = p, width = 14, height = 8, dpi = fig_dpi, units = "in")
+  labs(title = plot_title, x = x_label, y = y_label,
+       caption = str_wrap(fig_caption, width = 90)) +
+ or_theme + theme(legend.position = "none")
 ```
 
-# 2. BH-Corrected Comparisons
+```{r}
+#| label: c1-aspage-save
+#| include: false
 
-### Overview
+ggsave(file.path(fig_interactions, "aspXage_OR_C1.png"),
+      plot = p_c1_age, width = 14, height = 8, dpi = fig_dpi, units = "in")
+```
+
+```{r}
+#| label: fig-c1-aspage
+#| echo: false
+#| fig-width: 14
+#| fig-height: 8
+print(p_c1_age)
+```
+
+# BH-Corrected Comparisons {#sec-bh-comparisons}
 
 Benjamini-Hochberg correction applied to the indicator- and predictor-level pairwise comparisons already introduced on [Profiles](Profiles.qmd) and [Odds Ratios](Odds-Ratios.qmd), shown here together for direct comparison. Per Table 3 of the dissertation, negative risk indicators were significant on 57 of 65 possible comparisons and positive risk indicators on 21 of 29, while among predictors, peer substance use was the only one significant on all 6 comparisons -- sex was the least discriminating predictor at 4 of 6.
 
-### Data Import
+These indicator- and predictor-level pairwise comparisons were already computed against posterior class probabilities from the BCH three-step model estimated in LatentGOLD, which corrects for measurement error in profile assignment [@bolck2004]. What happens on this page is Benjamini-Hochberg correction of those already BCH-corrected comparisons for the multiple-testing problem created by six pairwise class comparisons per indicator/predictor [@benjamini1995a; @benjamini2000a] -- no additional BCH-specific computation happens in this R code. The indicator-level comparisons here are the same `paired comparisons` sheet used on the [Profiles](Profiles.qmd) page; the predictor-level comparisons are the same `predictors paired comparisons` sheet used on the [Odds Ratios](Odds-Ratios.qmd) page, shown together here for direct comparison.
 
-These indicator- and predictor-level pairwise comparisons were already computed against posterior class probabilities from the BCH three-step model estimated in LatentGOLD, which corrects for measurement error in profile assignment (Bolck et al., 2004). What happens on this page is Benjamini-Hochberg correction of those already BCH-corrected comparisons for the multiple-testing problem created by six pairwise class comparisons per indicator/predictor (Benjamini & Hochberg, 1995, 2000) -- no additional BCH-specific computation happens in this R code. (The original file's title said "Benjamini-Hochberg Adjustment," correctly, but this import paragraph said BCH -- fixed here to match what the code actually does.) The indicator-level comparisons here are the same `paired comparisons` sheet used on the Profiles page; the predictor-level comparisons are the same `predictors paired comparisons` sheet used on the Odds Ratios page, shown together here for direct comparison.
+::: {.callout-note appearance="simple" icon="false"}
+The code for this section is collapsed by default, but can be expanded individually for each section or all together with the toggle on the upper right.
+:::
 
 ```{r}
 #| label: import-bch
-#| echo: false
+#| include: false
 
+# Import predictor- and indicator-level paired comparisons
 pred_raw <- read_excel(data_path, sheet = "predictors paired comparisons")
 pairs_raw   <- read_excel(data_path, sheet = "paired comparisons")
 ```
 
+**Data Import**
+
 ```{r}
 #| label: data-view-bch-raw
-gt(head(pred_raw, 5)) |> tab_header(title = "predictors paired comparisons")
+gt(pred_raw) |> tab_header(title = "predictors paired comparisons")
 ```
 
+**Variable Labels**
 
+```{r}
+#| label: indicator-labels
+# Label Indicators
+indicator_label_map <- c(
+  WSDalc               = "Alcohol Problems",
+  cigwhole             = "Cigarette",
+  skipschool           = "Skipped school",
+  liewhere             = "Lied about whereabouts",
+  awayhome             = "Night out(unsanctioned)",
+  dare_dum             = "Dangerous dare",
+  seatbelt             = "No seatbelt",
+  drvdrunk             = "Drove Drunk",
+  BC_dum               = "Risky Sex",
+  steal12M             = "Theft",
+  phyfight             = "Fight",
+  WSDsport             = "Sport Teams",
+  WSDactivity          = "School Activities",
+  avoidproblems        = "Problem Approach",
+  disclose             = "Friend Disclosure",
+  intitaterelationship = "Initiated Relationship")
 
-## BH Corrections
+# "Negative" = negative risk indicators; "Positive" = positive risk indicators
+# (not currently used in a table below, kept here for future grouping)
+indicator_risk_panel <- c(
+  WSDalc               = "Negative",
+  cigwhole             = "Negative",
+  skipschool           = "Negative",
+  liewhere             = "Negative",
+  awayhome             = "Negative",
+  dare_dum             = "Negative",
+  seatbelt             = "Negative",
+  drvdrunk             = "Negative",
+  BC_dum               = "Negative",
+  steal12M             = "Negative",
+  phyfight             = "Negative",
+  WSDsport             = "Positive",
+  WSDactivity          = "Positive",
+  avoidproblems        = "Positive",
+  disclose             = "Positive",
+  intitaterelationship = "Positive")
+```
+
+## BH Corrections {#sec-comparisons-bh}
+
+The indicator- and predictor-level patterns agree in direction: both sets of comparisons separate most sharply along the same alcohol-problem-status divide (C1/C2 vs. C3/C4) that structures the indicator profiles themselves, and peer substance use -- the predictor with the most consistent indicator-level analog (negative risk indicators broadly) -- is also the most consistently significant predictor. BH correction on top of the BCH-corrected estimates does not change this overall pattern; it affects which specific pairwise comparisons clear the FDR < .05 threshold; see @tbl-nonsig-6c and @tbl-nonsig-6pred for the individual comparisons that did not.
+
 ```{r}
 #| label: bh-pairs-bch
 
+# Clean, BH-correct, and relabel the indicator-level paired comparisons
 pairs_6c <- pairs_raw %>%
   filter(Indicator != "Intercept", `p-value` != ".") %>%
   mutate(
     p_value   = as.numeric(`p-value`),
-    cluster_a = as.integer(clustera),
-    cluster_b = as.integer(clusterb),
-    pair      = paste0("C", cluster_a, " vs. C", cluster_b),
+    clustera = as.integer(clustera),
+    clusterb = as.integer(clusterb),
+    pair      = paste0("C", clustera, " vs. C", clusterb),
     p_adj     = p.adjust(p_value, method = "BH"),
-    sig       = p_adj < .05
-  )
+    sig       = p_adj < .05,
+    Indicator = recode(Indicator, !!!indicator_label_map))
 
+# Clean, BH-correct, and relabel the predictor-level paired comparisons
 pred_pairs <- pred_raw %>%
   filter(covariate != "Intercept", `p-value` != ".") %>%
   mutate(
     p_value   = as.numeric(`p-value`),
-    cluster_a = as.integer(cluster_a),
-    cluster_b = as.integer(cluster_b),
+    class = as.integer(cluster_a),
+    class = as.integer(cluster_b),
     pair      = paste0("C", cluster_a, " vs. C", cluster_b),
     p_adj     = p.adjust(p_value, method = "BH"),
-    sig       = p_adj < .05
-  )
+    sig       = p_adj < .05,
+    covariate = recode(covariate, !!!pred_labels))
 
 ```
 
-### Table: Non-Significant Indicator Comparisons
-@tbl-nonsig-6c: List of non-significant indicator comparisons
+**Non-Significant Indicator Comparisons**
+
 ```{r}
 #| label: tbl-nonsig-6c
+# Filter to non-significant indicator comparisons only
 nonsig_6c <- pairs_6c %>%
   filter(sig == FALSE) %>%
   select(Indicator, pair, p_value, p_adj) %>%
@@ -285,10 +391,11 @@ kable(nonsig_6c,
 
 ```
 
-### Table: Significant Indicator Comparisons
-@tbl-sig-6c: List of significant indicator comparisons
+**Significant Indicator Comparisons**
+
 ```{r}
 #| label: tbl-sig-6c
+# Filter to significant indicator comparisons only
 sig_6c <- pairs_6c %>%
   filter(sig == TRUE) %>%
   select(Indicator, pair, p_value, p_adj) %>%
@@ -300,11 +407,11 @@ kable(sig_6c,
       caption   = "Significant indicator comparisons after Benjamini-Hochberg correction (FDR < .05).")
 ```
 
+**Non-Significant Predictor Comparisons**
 
-### Table: Non-Significant Predictor Comparisons
-@tbl-nonsig-6pred: List of non-significant Predictor comparisons
 ```{r}
 #| label: tbl-nonsig-6pred
+# Filter to non-significant predictor comparisons only
 nonsig_pred <- pred_pairs %>%
   filter(sig == FALSE) %>%
   select(covariate, pair, p_value, p_adj) %>%
@@ -316,11 +423,11 @@ kable(nonsig_pred,
       caption   = "Non-significant Predictor comparisons after Benjamini-Hochberg correction (FDR < .05).")
 ```
 
+**Significant Predictor Comparisons**
 
-### Table: Significant Predictor Comparisons
-@tbl-sig-6pred: List of significant Predictor comparisons
 ```{r}
 #| label: tbl-sig-6pred
+# Filter to significant predictor comparisons only
 sig_pred <- pred_pairs %>%
   filter(sig == TRUE) %>%
   select(covariate, pair, p_value, p_adj) %>%
@@ -332,15 +439,16 @@ kable(sig_pred,
       caption   = "Significant Predictor comparisons after Benjamini-Hochberg correction (FDR < .05).")
 ```
 
-### Significant Indicator Comparisons by Profile
-@tbl-sig-cluster-6c: Total Significant Pairwise Indicator Comparisons by Cluster
+**Significant Indicator Comparisons by Profile**
+
 ```{r}
 #| label: tbl-sig-cluster-6c
+# Count how many significant comparisons involve each profile
 sig_pairs_6c <- pairs_6c %>% filter(sig == TRUE)
 
 by_cluster_6c <- bind_rows(
-  sig_pairs_6c %>% select(cluster = cluster_a, Indicator),
-  sig_pairs_6c %>% select(cluster = cluster_b, Indicator)
+  sig_pairs_6c %>% select(cluster = clustera, Indicator),
+  sig_pairs_6c %>% select(cluster = clusterb, Indicator)
 ) %>%
   mutate(cluster = paste0("C", cluster)) %>%
   count(cluster, name = "n_significant") %>%
@@ -353,14 +461,16 @@ kable(by_cluster_6c,
 
 ```
 
-### Table: Class 1 vs 2 Filtered
+**Indicator Comparisons by Profile: C1 vs. C2**
+
 ```{r}
 #| label: tbl-sig-cluster-6c12
+# Count significant comparisons specific to the C1 vs. C2 pair
 sig_pairs_6c12 <- pairs_6c %>% filter(sig == TRUE & clustera == 1 & clusterb == 2)
 
 sig_pairs_6c12 <- bind_rows(
-  sig_pairs_6c12 %>% select(cluster = cluster_a, Indicator),
-  sig_pairs_6c12 %>% select(cluster = cluster_b, Indicator)
+  sig_pairs_6c12 %>% select(cluster = clustera, Indicator),
+  sig_pairs_6c12 %>% select(cluster = clusterb, Indicator)
 ) %>%
   mutate(cluster = paste0("C", cluster)) %>%
   count(cluster, name = "n_significant") %>%
@@ -371,12 +481,12 @@ kable(sig_pairs_6c12,
       caption   = "Count of significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
 
 
-
+# Count non-significant comparisons specific to the C1 vs. C2 pair
 nonsig_pairs_6c12 <- pairs_6c %>% filter(sig == FALSE & clustera == 1 & clusterb == 2)
 
 nonsig_pairs_6c12 <- bind_rows(
-  nonsig_pairs_6c12 %>% select(cluster = cluster_a, Indicator),
-  nonsig_pairs_6c12 %>% select(cluster = cluster_b, Indicator)
+  nonsig_pairs_6c12 %>% select(cluster = clustera, Indicator),
+  nonsig_pairs_6c12 %>% select(cluster = clusterb, Indicator)
 ) %>%
   mutate(cluster = paste0("C", cluster)) %>%
   count(cluster, name = "n_significant") %>%
@@ -387,15 +497,16 @@ kable(nonsig_pairs_6c12,
       caption   = "Count of non-significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
 ```
 
+**Indicator Comparisons by Profile: C3 vs. C4**
 
-### Table: Class 3 vs 4 Filtered
 ```{r}
 #| label: tbl-sig-cluster-6c34
+# Count significant comparisons specific to the C3 vs. C4 pair
 sig_pairs_6c34 <- pairs_6c %>% filter(sig == TRUE & clustera == 3 & clusterb == 4)
 
 sig_pairs_6c34 <- bind_rows(
-  sig_pairs_6c34 %>% select(cluster = cluster_a, Indicator),
-  sig_pairs_6c34 %>% select(cluster = cluster_b, Indicator)
+  sig_pairs_6c34 %>% select(cluster = clustera, Indicator),
+  sig_pairs_6c34 %>% select(cluster = clusterb, Indicator)
 ) %>%
   mutate(cluster = paste0("C", cluster)) %>%
   count(cluster, name = "n_significant") %>%
@@ -406,12 +517,12 @@ kable(sig_pairs_6c34,
       caption   = "Count of significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
 
 
-
+# Count non-significant comparisons specific to the C3 vs. C4 pair
 nonsig_pairs_6c34 <- pairs_6c %>% filter(sig == FALSE & clustera == 3 & clusterb == 4)
 
 nonsig_pairs_6c34 <- bind_rows(
-  nonsig_pairs_6c34 %>% select(cluster = cluster_a, Indicator),
-  nonsig_pairs_6c34 %>% select(cluster = cluster_b, Indicator)
+  nonsig_pairs_6c34 %>% select(cluster = clustera, Indicator),
+  nonsig_pairs_6c34 %>% select(cluster = clusterb, Indicator)
 ) %>%
   mutate(cluster = paste0("C", cluster)) %>%
   count(cluster, name = "n_significant") %>%
@@ -422,11 +533,11 @@ kable(nonsig_pairs_6c34,
       caption   = "Count of non-significant indicator comparisons (BH-corrected, FDR < .05) involving each profile.")
 ```
 
-### Significant Demograpnic Comparisons by Profile
-@tbl-sig-cluster-6pred: Total Significant Pairwise Predictor Comparisons by Cluster
+**Significant Demographic Comparisons by Profile**
+
 ```{r}
 #| label: tbl-sig-cluster-6pred
-
+# Count how many significant predictor comparisons involve each profile
 sig_pred <- pred_pairs %>% filter(sig == TRUE)
 
 by_cluster_6pred <- bind_rows(
@@ -442,10 +553,11 @@ kable(by_cluster_6pred,
       caption   = "Count of significant Predictor comparisons (BH-corrected, FDR < .05) involving each profile.")
 ```
 
-### Significant Comparisons by Indicator
-@tbl-sig-indicator-6c: Total Significant Pairwise Comparisons by Indicator
+**Significant Comparisons by Indicator**
+
 ```{r}
 #| label: tbl-sig-indicator-6c
+# Total significant vs. non-significant comparisons, by indicator
 by_indicator_6c <- pairs_6c %>%
   group_by(Indicator) %>%
   summarise(
@@ -460,20 +572,19 @@ kable(by_indicator_6c,
       caption   = "Count of significant and non-significant pairwise comparisons (BH-corrected, FDR < .05) by indicator.")
 ```
 
+**Cleaned Data**
+
 ```{r}
 #| label: data-view-bch-tidy
-gt(head(pred_pairs, 6)) |> tab_header(title = "After: BH-corrected predictor pairwise comparisons")
+gt(pred_pairs) |> tab_header(title = "After: BH-corrected predictor pairwise comparisons")
 ```
 
-The indicator- and predictor-level patterns agree in direction: both sets of comparisons separate most sharply along the same alcohol-problem-status divide (C1/C2 vs. C3/C4) that structures the indicator profiles themselves, and peer substance use -- the predictor with the most consistent indicator-level analog (negative risk indicators broadly) -- is also the most consistently significant predictor. BH correction on top of the BCH-corrected estimates does not change this overall pattern; it affects which specific pairwise comparisons clear the FDR < .05 threshold; see the non-significant tables above for the individual comparisons that did not.
 
+**Significant Comparisons by Predictor**
 
-
-
-### Significant Comparisons by Predictors
-@tbl-sig-indicator-6pred: Total Significant Pairwise Comparisons by Predictors
 ```{r}
 #| label: tbl-sig-indicator-6pred
+# Total significant vs. non-significant comparisons, by predictor
 by_indicator_6pred <- pred_pairs %>%
   group_by(covariate) %>%
   summarise(

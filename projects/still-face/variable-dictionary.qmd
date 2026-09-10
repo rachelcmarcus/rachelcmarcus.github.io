@@ -27,6 +27,7 @@ The code used to create the sample data is @still-face-data-example-code and the
 
 ```{r}
 #| label: load-packages
+#| warning: false
 library(readxl)
 library(flextable)
 library(officer)

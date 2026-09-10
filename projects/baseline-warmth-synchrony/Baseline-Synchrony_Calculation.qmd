@@ -33,6 +33,13 @@ so mom is leading. This direction follows directly from how R's `ccf()` function
 is called below (`ccf(mom, partner)`), and it is applied consistently to every 
 leader/lag interpretation in this file.
 
+Colors follow the Tol muted palette throughout, for colorblind-friendly and 
+consistent encoding across figures and tables: mom leads / negative lag is 
+always blue (`#88CCEE`), partner leads / positive lag is always rose 
+(`#CC6677`), concurrent is green (`#117733`), significant is rose (`#CC6677`) 
+against a neutral gray for not-significant (`#DDDDDD`), and trend lines/ribbons 
+that aren't tied to a leader direction use indigo (`#332288`).
+
 The positive and negative sections mirror each other almost exactly, so the 
 narrative under the negative section is kept brief where the logic has already 
 been explained above.
@@ -319,7 +326,7 @@ library(ggplot2)
 # Distribution of maximum synchrony values
 blpwh_hist_maxsync <- ggplot(blpwh_sync_max_interpret, aes(x = max_abs_sync, fill = significant)) +
   geom_histogram(bins = 30, alpha = 0.7) +
-  scale_fill_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  scale_fill_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
   labs(title = "Distribution of Maximum Synchrony Across Couples",
        x = "Maximum Absolute Correlation",
        y = "Number of Couples",
@@ -328,7 +335,8 @@ blpwh_hist_maxsync <- ggplot(blpwh_sync_max_interpret, aes(x = max_abs_sync, fil
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 ```
 
 ```{r}
@@ -352,7 +360,7 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_
 # Distribution of lags where max occurs
 blpwh_hist_lag <- ggplot(blpwh_sync_max_interpret, aes(x = max_lag, fill = leader)) +
   geom_histogram(binwidth = 1, alpha = 0.7) +
-  scale_fill_manual(values = c("Mom leads" = "#CC6677", "Partner leads" = "#88CCEE", "Concurrent" = "#009988"), name = "Leader") +
+  scale_fill_manual(values = c("Mom leads" = "#88CCEE", "Partner leads" = "#CC6677", "Concurrent" = "#117733"), name = "Leader") +
   labs(title = "Lag at Maximum Synchrony",
        x = "Lag (seconds)",
        y = "Number of Couples",
@@ -362,7 +370,8 @@ blpwh_hist_lag <- ggplot(blpwh_sync_max_interpret, aes(x = max_lag, fill = leade
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 ```
 
 ```{r}
@@ -387,7 +396,7 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_hist_
 blpwh_scatter_sync <- ggplot(blpwh_sync_max_interpret,
        aes(x = max_lag, y = max_sync, color = significant)) +
   geom_point(size = 3, alpha = 0.6) +
-  scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  scale_color_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed") +
   labs(title = "Maximum Synchrony: Correlation vs Lag",
@@ -398,7 +407,8 @@ blpwh_scatter_sync <- ggplot(blpwh_sync_max_interpret,
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 ```
 
 ```{r}
@@ -432,11 +442,11 @@ blpwh_sync_ccfplot <- function(blpwh_sync_results, n_couples = 12) {
     filter(ID %in% selected_ids) %>%
     ggplot(aes(x = lag, y = acf)) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
-    geom_line(color = "#CC6677", size = 0.5) +
+    geom_line(color = "#332288", size = 0.5) +
     geom_point(aes(color = significant), size = 1) +
     geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
-                alpha = 0.15, fill = "#CC6677") +
-    scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+                alpha = 0.15, fill = "#332288") +
+    scale_color_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
     facet_wrap(~ ID, scales = "free_y", ncol = 3) +
     labs(title = "Cross-Correlation Functions Across Couples",
          x = "Lag (seconds)",
@@ -447,7 +457,8 @@ blpwh_sync_ccfplot <- function(blpwh_sync_results, n_couples = 12) {
     theme(legend.position = "bottom",
           strip.text = element_text(face = "bold", size = 14),
           axis.title = element_text(size = 14), axis.text = element_text(size = 12),
-          panel.grid = element_blank())
+          panel.grid = element_blank(),
+          plot.caption = element_text(hjust = 0, size = 16))
 }
 
 # Make grid
@@ -498,9 +509,9 @@ The x-axis label below follows the same direction as everywhere else in this fil
 blpwh_sync_avgccf_plot <- ggplot(blpwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
-              alpha = 0.3, fill = "#CC6677") +
-  geom_line(color = "#CC6677", size = 1.2) +
-  geom_point(aes(size = pct_significant), color = "#CC6677") +
+              alpha = 0.3, fill = "#332288") +
+  geom_line(color = "#332288", size = 1.2) +
+  geom_point(aes(size = pct_significant), color = "#332288") +
   scale_size_continuous(range = c(1, 4), name = "% Couples\nSignificant") +
   labs(title = "Average Cross-Correlation Function Across All Couples",
        subtitle = "Shaded area represents 95% confidence interval",
@@ -510,7 +521,8 @@ blpwh_sync_avgccf_plot <- ggplot(blpwh_sync_avgccf, aes(x = lag, y = mean_acf)) 
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 
 ```
 
@@ -675,11 +687,25 @@ blpwh_sync_summarytable <- blpwh_sync_summary %>%
     has_partner_leads = "Partner Leads"
   ) %>%
   
-  # Color code the boolean columns
+  # Color code the boolean columns (colors match each variable's role elsewhere: mom leads = blue, partner leads = rose, concurrent = green)
   data_color(
-    columns = c(has_concurrent, has_mom_leads, has_partner_leads),
+    columns = has_concurrent,
     colors = scales::col_factor(
-      palette = c("lightgray", "lightgreen"),
+      palette = c("#DDDDDD", "#117733"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  data_color(
+    columns = has_mom_leads,
+    colors = scales::col_factor(
+      palette = c("#DDDDDD", "#88CCEE"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  data_color(
+    columns = has_partner_leads,
+    colors = scales::col_factor(
+      palette = c("#DDDDDD", "#CC6677"),
       domain = c(FALSE, TRUE)
     )
   ) %>%
@@ -1113,7 +1139,7 @@ library(ggplot2)
 # Distribution of maximum synchrony values
 blnwh_hist_maxsync <- ggplot(blnwh_sync_max_interpret, aes(x = max_abs_sync, fill = significant)) +
   geom_histogram(bins = 30, alpha = 0.7) +
-  scale_fill_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  scale_fill_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
   labs(title = "Distribution of Maximum Synchrony Across Couples",
        x = "Maximum Absolute Correlation",
        y = "Number of Couples",
@@ -1122,7 +1148,8 @@ blnwh_hist_maxsync <- ggplot(blnwh_sync_max_interpret, aes(x = max_abs_sync, fil
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 ```
 
 ```{r}
@@ -1145,7 +1172,7 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_
 # Distribution of lags where max occurs
 blnwh_hist_lag <- ggplot(blnwh_sync_max_interpret, aes(x = max_lag, fill = leader)) +
   geom_histogram(binwidth = 1, alpha = 0.7) +
-  scale_fill_manual(values = c("Mom leads" = "#CC6677", "Partner leads" = "#88CCEE", "Concurrent" = "#009988"), name = "Leader") +
+  scale_fill_manual(values = c("Mom leads" = "#88CCEE", "Partner leads" = "#CC6677", "Concurrent" = "#117733"), name = "Leader") +
   labs(title = "Lag at Maximum Synchrony",
        x = "Lag (seconds)",
        y = "Number of Couples",
@@ -1155,7 +1182,8 @@ blnwh_hist_lag <- ggplot(blnwh_sync_max_interpret, aes(x = max_lag, fill = leade
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 blnwh_hist_lag
 ```
 
@@ -1181,7 +1209,7 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_hist_
 blnwh_scatter_sync <- ggplot(blnwh_sync_max_interpret,
        aes(x = max_lag, y = max_sync, color = significant)) +
   geom_point(size = 3, alpha = 0.6) +
-  scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+  scale_color_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed") +
   labs(title = "Maximum Synchrony: Correlation vs Lag",
@@ -1192,7 +1220,8 @@ blnwh_scatter_sync <- ggplot(blnwh_sync_max_interpret,
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 
 ```
 
@@ -1224,11 +1253,11 @@ blnwh_sync_ccfplot <- function(blnwh_sync_results, n_couples = 12) {
     filter(ID %in% selected_ids) %>%
     ggplot(aes(x = lag, y = acf)) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
-    geom_line(color = "#CC6677", size = 0.5) +
+    geom_line(color = "#332288", size = 0.5) +
     geom_point(aes(color = significant), size = 1) +
     geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
-                alpha = 0.15, fill = "#CC6677") +
-    scale_color_manual(values = c("FALSE" = "#BBBBBB", "TRUE" = "#CC3311"), name = "Significant") +
+                alpha = 0.15, fill = "#332288") +
+    scale_color_manual(values = c("FALSE" = "#DDDDDD", "TRUE" = "#CC6677"), name = "Significant") +
     facet_wrap(~ ID, scales = "free_y", ncol = 3) +
     labs(title = "Cross-Correlation Functions Across Couples",
          x = "Lag (seconds)",
@@ -1239,7 +1268,8 @@ blnwh_sync_ccfplot <- function(blnwh_sync_results, n_couples = 12) {
     theme(legend.position = "bottom",
           strip.text = element_text(face = "bold", size = 14),
           axis.title = element_text(size = 14), axis.text = element_text(size = 12),
-          panel.grid = element_blank())
+          panel.grid = element_blank(),
+          plot.caption = element_text(hjust = 0, size = 16))
 }
 
 # Make grid
@@ -1287,9 +1317,9 @@ blnwh_sync_avgccf <- blnwh_sync_results %>%
 blnwh_sync_avgccf_plot <- ggplot(blnwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
-              alpha = 0.3, fill = "#CC6677") +
-  geom_line(color = "#CC6677", size = 1.2) +
-  geom_point(aes(size = pct_significant), color = "#CC6677") +
+              alpha = 0.3, fill = "#332288") +
+  geom_line(color = "#332288", size = 1.2) +
+  geom_point(aes(size = pct_significant), color = "#332288") +
   scale_size_continuous(range = c(1, 4), name = "% Couples\nSignificant") +
   labs(title = "Average Cross-Correlation Function Across All Couples",
        subtitle = "Shaded area represents 95% confidence interval",
@@ -1299,7 +1329,8 @@ blnwh_sync_avgccf_plot <- ggplot(blnwh_sync_avgccf, aes(x = lag, y = mean_acf)) 
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 16))
 ```
 
 ```{r}
@@ -1320,7 +1351,7 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_sync_
 
 ### Heatmap Across Couples
 
-Couples are identified only by their row order, not their real ID, and the y-axis is left unlabeled, so no participant identifiers appear on the public site.
+Couples are identified only by their row order, not their real ID, and the y-axis is left unlabeled, so no participant identifiers appear on the public site. The blue-to-rose gradient here already matches the Tol palette and the mom-leads (blue) / partner-leads (rose) convention used everywhere else in this file, so it's unchanged.
 
 ```{r}
 #| label: blnwh-heatmap
@@ -1344,7 +1375,8 @@ blnwh_sync_heatmap <- function(blnwh_sync_results, n_couples = 50) {
     theme(legend.position = "bottom", axis.title = element_text(size = 14),
           axis.text.y = element_blank(), axis.ticks.y = element_blank(),
           axis.text.x = element_text(size = 12),
-          panel.grid = element_blank())
+          panel.grid = element_blank(),
+          plot.caption = element_text(hjust = 0, size = 16))
 }
 
 blnwh_sync_heatmap_p <- blnwh_sync_heatmap(blnwh_sync_results, n_couples = 30)
@@ -1506,11 +1538,25 @@ blnwh_sync_summarytable <- blnwh_sync_summary %>%
     has_partner_leads = "Partner Leads"
   ) %>%
   
-  # Color code the boolean columns
+  # Color code the boolean columns (colors match each variable's role elsewhere: mom leads = blue, partner leads = rose, concurrent = green)
   data_color(
-    columns = c(has_concurrent, has_mom_leads, has_partner_leads),
+    columns = has_concurrent,
     colors = scales::col_factor(
-      palette = c("lightgray", "lightgreen"),
+      palette = c("#DDDDDD", "#117733"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  data_color(
+    columns = has_mom_leads,
+    colors = scales::col_factor(
+      palette = c("#DDDDDD", "#88CCEE"),
+      domain = c(FALSE, TRUE)
+    )
+  ) %>%
+  data_color(
+    columns = has_partner_leads,
+    colors = scales::col_factor(
+      palette = c("#DDDDDD", "#CC6677"),
       domain = c(FALSE, TRUE)
     )
   ) %>%

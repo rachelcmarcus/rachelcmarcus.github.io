@@ -17,8 +17,6 @@ Beacuse infants expect consistent, responsive interaction; the mother withdrawin
 
 Observational coding, the data the below table is drawn from, captures this by having trained coders mark the onset and offset of discrete behavioral states (e.g. gaze direction, facial affect, vocalization, motor behavior) continuously throughout each episode. This results in raw data with timestamped start/stop events per behavior per subject, as seen in the sample raw data in @still-face-data-example. This data must be imported, cleaned, and transformed into variables in the sample data dictionary table.
 
-The code used to create the sample data is @still-face-data-example-code and the code to create the replicated data dictionary table is @variable-dictionary-code.
-
 ::: {.callout-tip appearance="simple" icon="false"}
 **Scientific relevance of Individual and dyadic differences**: the *magnitude* of the still-face effect and the *speed/completeness* of reunion recovery are used as indicators of infant self-regulation, mother-infant synchrony, and attachment-relevant processes. Blunted still-face reactivity, minimal recovery, or atypical patterns (e.g., disorganized behavior, dysregulated affect) have been linked in the literature to risk factors such as maternal depression, prenatal substance exposure, and early adversity.
 :::

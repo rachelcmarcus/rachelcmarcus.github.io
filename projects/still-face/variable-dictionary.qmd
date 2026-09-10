@@ -19,20 +19,24 @@ Observational coding, the data the below table is drawn from, captures this by h
 
 The code used to create the sample data is @still-face-data-example-code and the code to create the replicated data dictionary table is @variable-dictionary-code.
 
-::: callout-tip
+::: {.callout-tip appearance="simple" icon="false"}
 **Scientific relevance of Individual and dyadic differences**: the *magnitude* of the still-face effect and the *speed/completeness* of reunion recovery are used as indicators of infant self-regulation, mother-infant synchrony, and attachment-relevant processes. Blunted still-face reactivity, minimal recovery, or atypical patterns (e.g., disorganized behavior, dysregulated affect) have been linked in the literature to risk factors such as maternal depression, prenatal substance exposure, and early adversity.
 :::
 
 ## Raw Data Example
 
 ```{r}
-#| label: still-face-data-example
-#| echo: false
-
+#| label: load-packages
 library(readxl)
 library(flextable)
 library(officer)
 library(dplyr)
+```
+
+```{r}
+#| label: still-face-data-example
+#| echo: false
+#| warning: false
 
 raw <- read_excel("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Still Face/6M Event Logs/111_SFF_SF6M_64 - Event Logs.xlsx")
 
@@ -68,9 +72,7 @@ ft_example
 ```{r}
 #| label: variable-dictionary
 #| echo: false
-library(flextable)
-library(officer)
-library(dplyr)
+#| warning: false
 
 var_dict <- tibble::tribble(
   ~Domain,  ~Variable,                                      ~Baseline,        ~`Still Face`,     ~Reunion,          ~Total,
@@ -182,11 +184,7 @@ ft_dictionary
 
 ```{r}
 #| label: still-face-data-example-code
-
-library(readxl)
-library(flextable)
-library(officer)
-library(dplyr)
+#| code-summary: "data example code"
 
 demo <- raw %>%
   filter(Time_Relative_sf <= 2.12 | (Time_Relative_sf >= 119.995 & Time_Relative_sf <= 120.02)) %>%
@@ -221,11 +219,7 @@ ft_example <- flextable(demo) %>%
 
 ```{r}
 #| label: variable-dictionary-code
-
-library(flextable)
-library(officer)
-library(dplyr)
-
+#| code-summary: "data dictionary code"
 
 var_dict <- tibble::tribble(
   ~Domain,  ~Variable,                                      ~Baseline,        ~`Still Face`,     ~Reunion,          ~Total,

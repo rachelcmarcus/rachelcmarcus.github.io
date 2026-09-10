@@ -59,11 +59,13 @@ joint-attention variables for infant, parent, and dyadic behavior.
 ::: {.g-col-12 .g-col-md-6}
 ### [Add Health: Risk-Taking Profiles & Predictors](projects/add-health/Profiles.qmd))
 
-A latent class analysis of Add Health survey data, characterizing
-indicator and predictor profiles across classes, testing between-class
-differences via odds ratios and interaction effects, and validating
-class-predictor associations with the BCH three-step auxiliary variable
-method.
+This project runs a latent class analysis of Add Health survey data. It
+characterizes indicator and predictor profiles across classes, tests
+between-class differences through odds ratios and interaction effects, and
+validates class-predictor associations using the BCH three-step auxiliary
+variable method.
+
+This is the code behind Study 1 of my dissertation, *[Rethinking Adolescent Risk-Taking: Examining Autonomy Support and Developmental Pathways to Positive and Negative Risk Behaviors Across Low- and High-Risk Contexts](https://etda.libraries.psu.edu/files/final_submissions/35471)* ([Google Scholar](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C39&q=Rethinking+Adolescent+Risk-Taking%3A+Examining+Autonomy+Support+And+Developmental+Pathways+To+Positive+And+Negative+Risk+Behaviors+Across+Low+And+High-Risk+Contexts&btnG=)).
 
 **Tools:** R
 :::

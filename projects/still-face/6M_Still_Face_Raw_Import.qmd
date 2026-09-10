@@ -1126,17 +1126,12 @@ EPISODE_BOUNDARY_COMPARISON <- actual_long %>%
       is.na(actual_mmss)                ~ "NO REFERENCE TIME",
       actual_sec == r_sec               ~ "MATCH",
       TRUE                              ~ "NOT-MATCH"
-    )
+    ),
+    sec_diff = abs(actual_sec - r_sec)
   ) %>%
-  select(ID, episode, boundary, actual_mmss, r_mmss, actual_sec, r_sec, match) %>%
+  select(ID, episode, boundary, actual_mmss, r_mmss, actual_sec, r_sec, sec_diff, match) %>%
   arrange(ID, episode, boundary)
 
-# Keep only subjects that have at least one row that is NOT a match, then
-# attach that subject's COMMENTS from the coding log
-ids_with_issues <- EPISODE_BOUNDARY_COMPARISON %>%
-  filter(match != "MATCH") %>%
-  distinct(ID) %>%
-  pull(ID)
 
 # Filter based on episodes that do not match manual coding log
 # Only the non-matches worth chasing down — off by more than 4 seconds
@@ -1144,7 +1139,7 @@ EPISODE_BOUNDARY_FLAGGED <- EPISODE_BOUNDARY_COMPARISON %>%
   filter(match == "NOT-MATCH", sec_diff > 4)
 
 # Preview in the knitted output
-knitr::kable(EPISODE_BOUNDARY_COMPARISON_FLAGGED, caption = "Episode Boundary Comparison: Raw Data vs. Coding Log (Flagged Subjects)")
+knitr::kable(EPISODE_BOUNDARY_FLAGGED, caption = "Episode Boundary Comparison: Raw Data vs. Coding Log (Flagged Subjects)")
 ```
 
 # 12. Final review {#sec-preview-raw}

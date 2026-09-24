@@ -132,8 +132,8 @@ table_id_key <- tibble(
 anonymize_table_ids <- function(data) {
   data %>%
     left_join(table_id_key, by = "ID") %>%
-    select(-ID) %>%
-    rename(ID = display_ID)
+    mutate(ID = display_ID) %>%
+    select(-display_ID)
 }
 ```
 

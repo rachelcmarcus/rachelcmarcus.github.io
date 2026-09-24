@@ -47,21 +47,21 @@ as part of a multidisciplinary research team.
 
 The analysis proceeds in five steps:
 
-@sec-step0: Wave I structural disadvantage indicators are used to build
+[Step 0](#sec-step0): Wave I structural disadvantage indicators are used to build
 **outcome-specific disadvantage composites** [@marquez2023].
 
-@sec-step1: Wave III outcomes are **regressed on the corresponding
+[Step 1](#sec-step1): Wave III outcomes are **regressed on the corresponding
 disadvantage composites** [@miller-lewis2013].
 
-@sec-step2: Standardized residuals from those models become **continuous
+[Step 2](#sec-step2): Standardized residuals from those models become **continuous
 resilience scores**: the degree to which a young adult is doing better
 or worse than expected given their adolescent disadvantage exposure.
 
-@sec-step3: Multilevel resilience factors (individual, family, school,
+[Step 3](#sec-step3): Multilevel resilience factors (individual, family, school,
 and community) are tested as **predictors of resilience** in the full
 sample.
 
-@sec-step4: Exploratory low- and high-disadvantage subgroup estimates
+[Step 4](#sec-step4): Exploratory low- and high-disadvantage subgroup estimates
 are paired with **formal interaction tests** to evaluate whether
 associations differ as disadvantage increases.
 
@@ -78,13 +78,13 @@ workflow.
 #| label: load-packages
 #| message: false
 #| warning: false
-library(gtsummary)   # regression summary tables
-library(flextable)   # table formatting and export
-library(haven)       # read SPSS .sav files
-library(tidyverse)   # data wrangling and iteration
-library(survey)      # complex survey / weighted regression
-library(broom)       # tidy model output
-library(gt)          # formatted tables
+library(gtsummary)   # Regression summary tables
+library(flextable)   # Table formatting and export
+library(haven)       # Read SPSS .sav files
+library(tidyverse)   # Data wrangling and iteration
+library(survey)      # Complex survey / weighted regression
+library(broom)       # Tidy model output
+library(gt)          # Formatted tables
 ```
 
 The analytic dataset is the merged Add Health public-use survey data
@@ -94,14 +94,14 @@ file path is intentionally hidden from the rendered work sample.
 ```{r}
 #| label: load-data
 #| include: false
-# Import the cleaned SPSS analytic file into R while preserving variable labels and SPSS metadata.
+# Import the cleaned SPSS analytic file into R while preserving variable labels and SPSS metadata
 dat <- read_sav("C:/Users/rcm5550/Desktop/PSU OD Copy/Rachel - The Pennsylvania State University/SPR Cup 2026/Analysis/AddHealth_AllData.sav")
 ```
 
 ```{r}
 #| label: save-tables
 #| include: false
-# Create `fig_dir` for use in the subsequent analysis/reporting steps.
+# Create `fig_dir` for use in the subsequent analysis/reporting steps
 fig_dir <- "../../figures/spr-cup/"
 if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
 ```
@@ -497,9 +497,9 @@ work sample.
 ```{r}
 #| label: check missing sample weight
 
-#how many cases missing
+# How many cases missing
 cat("Missing GSWGT3_2:", sum(is.na(dat$GSWGT3_2)), "\n")
-# Print this diagnostic/result so the rendered analysis documents the value produced at this stage.
+# Print this diagnostic/result so the rendered analysis documents the value produced at this stage
 cat("Non-missing GSWGT3_2:", sum(!is.na(dat$GSWGT3_2)), "\n")
 ```
 
@@ -508,9 +508,9 @@ cat("Non-missing GSWGT3_2:", sum(!is.na(dat$GSWGT3_2)), "\n")
 ```{r}
 #| label: filter for analytic dataset
 # ── Subset to respondents with valid Wave 3 weight ────────────────────────────
-dat_w3 <- dat |> filter(!is.na(GSWGT3_2)) #dat_w3 is name of filtered dataset 
+dat_w3 <- dat |> filter(!is.na(GSWGT3_2)) # Dat_w3 is name of filtered dataset 
 
-# Print this diagnostic/result so the rendered analysis documents the value produced at this stage.
+# Print this diagnostic/result so the rendered analysis documents the value produced at this stage
 cat("Analytic n after excluding missing weights:", nrow(dat_w3), "\n")
 ```
 
@@ -519,16 +519,16 @@ cat("Analytic n after excluding missing weights:", nrow(dat_w3), "\n")
 ```{r}
 #| label: weighted dataset
 # Wave III grand sample weight accounts for unequal selection probability
-# and nonresponse. ids = ~1 reflects the weighting specification used in the
-# original SPR Cup analysis.
+# And nonresponse. ids = ~1 reflects the weighting specification used in the
+# Original SPR Cup analysis
 
-# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates.
+# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates
 design_w3 <- svydesign(
   ids     = ~1,
   weights = ~GSWGT3_2,
   data    = dat_w3)
 
-# Print this diagnostic/result so the rendered analysis documents the value produced at this stage.
+# Print this diagnostic/result so the rendered analysis documents the value produced at this stage
 cat("Sum of weights:", round(sum(dat_w3$GSWGT3_2), 0), "\n")
 ```
 
@@ -550,7 +550,7 @@ disadvantage_vars <- c(
   "nbhd_subj_disadv"  = "Neighborhood Disadvantage (Subjective)",
   "cens_nbhd_disadv"  = "Neighborhood Disadvantage (Census)")
 
-# Store the variable names/labels in `protective_vars` so later code can iterate over them programmatically.
+# Store the variable names/labels in `protective_vars` so later code can iterate over them programmatically
 protective_vars <- c(
   "commconnect"       = "Community Connectedness",
   "commintegr_disadv" = "Community Integration",
@@ -560,7 +560,7 @@ protective_vars <- c(
   "parentchild_rel"   = "Parent-Child Relationship",
   "schoolconnect"     = "School Connectedness")
 
-# Store the variable names/labels in `outcome_vars` so later code can iterate over them programmatically.
+# Store the variable names/labels in `outcome_vars` so later code can iterate over them programmatically
 outcome_vars <- c(
   "cesD_sum"    = "Depression Symptoms",
   "subuse_W3"   = "Substance Use",
@@ -590,7 +590,7 @@ make_desc_rows <- function(var_named_vec, design, section_label) {
   rbind(data.frame(Variable = section_label, M = "", SD = "", Range = ""), rows)
 }
 
-# Create `desc_tbl` for use in the subsequent analysis/reporting steps.
+# Create `desc_tbl` for use in the subsequent analysis/reporting steps
 desc_tbl <- rbind(
   make_desc_rows(disadvantage_vars,  design_w3, "Disadvantage Predictors"),
   make_desc_rows(protective_vars, design_w3, "Protective Factors"),
@@ -599,12 +599,12 @@ desc_tbl <- rbind(
 # ── Build flextable ───────────────────────────────────────────────────────────
 header_rows <- which(desc_tbl$M == "")
 
-# Build `descriptives` through a reproducible sequence of data-transformation steps.
+# Build `descriptives` through a reproducible sequence of data-transformation steps
 descriptives <- flextable(desc_tbl) |>
   set_header_labels(Variable = "Variable", M = "M", SD = "SD", Range = "Range") |>
   add_header_row(
     values    = c("", "Weighted Descriptive Statistics"),
-    colwidths = c(1, 3)                                        # was c(1, 2)
+    colwidths = c(1, 3)                                        # Was c(1, 2)
   ) |>
   theme_apa() |>
   font(fontname = "Times New Roman", part = "all") |>
@@ -612,8 +612,8 @@ descriptives <- flextable(desc_tbl) |>
   bold(part = "header") |>
   bold(i = header_rows, part = "body") |>
   width(j = 1, width = 3.0) |>
-  width(j = 2:4, width = 1.0) |>                              # was 2:3
-  align(j = 2:4, align = "center", part = "all") |>           # was 2:3
+  width(j = 2:4, width = 1.0) |>                              # Was 2:3
+  align(j = 2:4, align = "center", part = "all") |>           # Was 2:3
   padding(i = setdiff(seq_len(nrow(desc_tbl)), header_rows),
           j = 1, padding.left = 20, part = "body") |>
   add_footer_lines("Note. Means and standard deviations are weighted using the Wave 3 grand sample weight (GSWGT3_2). Range is unweighted.") |>
@@ -637,7 +637,7 @@ not exclusively high-risk, longitudinal sample.
 #| label: save-descriptives-png
 #| include: false
 
-# Build `descriptives_png` through a reproducible sequence of data-transformation steps.
+# Build `descriptives_png` through a reproducible sequence of data-transformation steps
 descriptives_png <- descriptives |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -647,7 +647,7 @@ descriptives_png <- descriptives |>
   width(j = 1, width = 3.2) |>
   width(j = 2:4, width = 1.05)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(descriptives_png, path = paste0(fig_dir, "descriptives.png"), zoom = 3, expand = 0)
 ```
 
@@ -675,7 +675,7 @@ identical code blocks, the workflow is parameterized and iterated below.
 ```{r}
 #| label: individual-disadvantage-regressions
 
-# Create `disadvantage_specs` for use in the subsequent analysis/reporting steps.
+# Create `disadvantage_specs` for use in the subsequent analysis/reporting steps
 disadvantage_specs <- tribble(
   ~predictor,             ~predictor_label,
   "minorityD",            "Minority Status",
@@ -686,7 +686,7 @@ disadvantage_specs <- tribble(
   "Zcens_nbhd_disadv",    "Neighborhood (Census)"
 )
 
-# Create `outcome_specs` for use in the subsequent analysis/reporting steps.
+# Create `outcome_specs` for use in the subsequent analysis/reporting steps
 outcome_specs <- tribble(
   ~outcome,          ~outcome_label,
   "ZcesD_sum",       "Depression",
@@ -695,7 +695,7 @@ outcome_specs <- tribble(
   "Zgenhealth_W3",   "Health"
 )
 
-# Define `fit_disadvantage_model()` once so the same operation can be applied consistently across variables/models without duplicating code.
+# Define `fit_disadvantage_model()` once so the same operation can be applied consistently across variables/models without duplicating code
 fit_disadvantage_model <- function(outcome, predictor, design) {
   svyglm(
     reformulate(predictor, response = outcome),
@@ -704,7 +704,7 @@ fit_disadvantage_model <- function(outcome, predictor, design) {
   )
 }
 
-# Generate every required outcome-by-predictor combination before fitting the repeated models programmatically.
+# Generate every required outcome-by-predictor combination before fitting the repeated models programmatically
 weight_results <- crossing(outcome_specs, disadvantage_specs) |>
   mutate(
     model = map2(
@@ -739,7 +739,7 @@ outcome-specific structural disadvantage composites.
 ```{r}
 #| label: create-disadvantage-weight-table
 
-# Build `weight_summary` through a reproducible sequence of data-transformation steps.
+# Build `weight_summary` through a reproducible sequence of data-transformation steps
 weight_summary <- weight_results |>
   select(Predictor = predictor_label, Outcome = outcome_label, b, p) |>
   mutate(
@@ -762,7 +762,7 @@ weight_summary <- weight_results |>
     Health_b, Health_p
   )
 
-# Build `table_weights` through a reproducible sequence of data-transformation steps.
+# Build `table_weights` through a reproducible sequence of data-transformation steps
 table_weights <- flextable(weight_summary) |>
   set_header_labels(
     Predictor = "Predictor",
@@ -804,7 +804,7 @@ assigning each indicator equal influence.
 ```{r}
 #| label: save-disadvantage-weight-table-png
 #| include: false
-# Build `table_weights_png` through a reproducible sequence of data-transformation steps.
+# Build `table_weights_png` through a reproducible sequence of data-transformation steps
 table_weights_png <- table_weights |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -813,7 +813,7 @@ table_weights_png <- table_weights |>
   width(j = 1, width = 1.6) |>
   width(j = 2:9, width = 0.6)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(
   table_weights_png,
   path = paste0(fig_dir, "table_weights.png"),
@@ -843,16 +843,16 @@ which its association is weaker.
 ::: {.callout-note appearance="simple" icon="false"}
 **Interpretive note.** The beta weights are estimated in the same
 analytic sample in which the composites are subsequently used. This
-makes the approach useful for the present explanatory analysis, but the
-magnitude of the weighted-composite associations should not be treated
-as out-of-sample predictive performance. A future extension could
+makes the approach useful for the present analysis, but the magnitude of
+the weighted composite associations should not be treated as
+out-of-sample predictive performance. A future extension could
 cross-validate the weights or evaluate them in an independent sample.
 :::
 
 ```{r}
 #| label: cumulative-composites
 
-# Define `get_weight_vector()` once so the same operation can be applied consistently across variables/models without duplicating code.
+# Define `get_weight_vector()` once so the same operation can be applied consistently across variables/models without duplicating code
 get_weight_vector <- function(outcome_name) {
   weight_results |>
     filter(outcome == outcome_name) |>
@@ -860,22 +860,22 @@ get_weight_vector <- function(outcome_name) {
     deframe()
 }
 
-# Create `w_dep` for use in the subsequent analysis/reporting steps.
+# Create `w_dep` for use in the subsequent analysis/reporting steps
 w_dep <- get_weight_vector("ZcesD_sum")
-# Create `w_sub` for use in the subsequent analysis/reporting steps.
+# Create `w_sub` for use in the subsequent analysis/reporting steps
 w_sub <- get_weight_vector("Zsubuse_W3")
-# Create `w_edu` for use in the subsequent analysis/reporting steps.
+# Create `w_edu` for use in the subsequent analysis/reporting steps
 w_edu <- get_weight_vector("Zedattain_W3")
-# Create `w_hlt` for use in the subsequent analysis/reporting steps.
+# Create `w_hlt` for use in the subsequent analysis/reporting steps
 w_hlt <- get_weight_vector("Zgenhealth_W3")
 
-# Define `weighted_composite()` once so the same operation can be applied consistently across variables/models without duplicating code.
+# Define `weighted_composite()` once so the same operation can be applied consistently across variables/models without duplicating code
 weighted_composite <- function(data, weights) {
   x <- as.matrix(data[, names(weights), drop = FALSE])
   as.numeric(x %*% weights)
 }
 
-# Build `dat_w3` through a reproducible sequence of data-transformation steps.
+# Build `dat_w3` through a reproducible sequence of data-transformation steps
 dat_w3 <- dat_w3 |>
   mutate(
     cumadv_depression = weighted_composite(cur_data(), w_dep),
@@ -888,7 +888,7 @@ dat_w3 <- dat_w3 |>
     Zcumadv_health     = as.numeric(scale(cumadv_health))
   )
 
-# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates.
+# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates
 design_w3 <- svydesign(
   ids = ~1,
   weights = ~GSWGT3_2,
@@ -898,25 +898,25 @@ design_w3 <- svydesign(
 
 ```{r}
 #| label: create cumulative disadvantage descriptives
-# create table labels for each outcome
+# Create table labels for each outcome
 cumadv_vars <- c(
   "cumadv_depression" = "Depression",
   "cumadv_substance"  = "Substance Use",
   "cumadv_education"  = "Education Attainment",
   "cumadv_health"     = "General Health")
 
-# create function for disadvantage composite descriptives
+# Create function for disadvantage composite descriptives
 cumadv_rows <- do.call(rbind, lapply(names(cumadv_vars), function(v) {
   d <- get_desc(v, design_w3)
   data.frame(Variable = cumadv_vars[[v]], M = d$M, SD = d$SD, Range = d$Range)
 }))
 
-# create table for disadvantage composite descriptives
+# Create table for disadvantage composite descriptives
 cumulative_descriptives <- flextable(cumadv_rows) |>
   set_header_labels(Variable = "Outcome", M = "M", SD = "SD", Range = "Range") |>
   add_header_row(
     values    = c("", "Cumulative Disadvantage Composites"),
-    colwidths = c(1, 3)                              # was c(1, 2)
+    colwidths = c(1, 3)                              # Was c(1, 2)
   ) |>
   theme_apa() |>
   font(fontname = "Times New Roman", part = "all") |>
@@ -942,7 +942,7 @@ cumulative_descriptives
 #| label: save-cumulative-png
 #| include: false
 
-# Build `cumulative_descriptives_png` through a reproducible sequence of data-transformation steps.
+# Build `cumulative_descriptives_png` through a reproducible sequence of data-transformation steps
 cumulative_descriptives_png <- cumulative_descriptives |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -952,7 +952,7 @@ cumulative_descriptives_png <- cumulative_descriptives |>
   width(j = 1, width = 2.5) |>
   width(j = 2:4, width = 0.9)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(cumulative_descriptives_png, path = "cumulative_descriptives.png", zoom = 3, expand = 0)
 ```
 
@@ -997,7 +997,7 @@ model_health <- svyglm(
 
 ```{r}
 #| label: create step1 table
-# create function to pull beta and p value from step 1 regressions
+# Create function to pull beta and p value from step 1 regressions
 fmt_step1 <- function(model, var) {
   coefs <- summary(model)$coefficients
   b <- coefs[var, "Estimate"]
@@ -1012,7 +1012,7 @@ fmt_step1 <- function(model, var) {
   paste0(formatC(b, digits = 2, format = "f"), stars)
 }
 
-# create dataframe for regression table
+# Create dataframe for regression table
 step1_tbl <- data.frame(
   Predictor     = "Cumulative Disadvantage",
   Depression    = fmt_step1(model_depression, "Zcumadv_depression"),
@@ -1020,7 +1020,7 @@ step1_tbl <- data.frame(
   Education     = fmt_step1(model_education,  "Zcumadv_education"),
   Health        = fmt_step1(model_health,     "Zcumadv_health"))
 
-# create table for step 1 regressions
+# Create table for step 1 regressions
 disadvantage_regressions <- flextable(step1_tbl) |>
   set_header_labels(
     Predictor     = "",
@@ -1064,7 +1064,7 @@ functioning---become the resilience scores used in the next step.
 #| label: save-disadvantageregressions-png
 #| include: false
 
-# Build `disadvantage_regressions_png` through a reproducible sequence of data-transformation steps.
+# Build `disadvantage_regressions_png` through a reproducible sequence of data-transformation steps
 disadvantage_regressions_png <- disadvantage_regressions |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -1073,7 +1073,7 @@ disadvantage_regressions_png <- disadvantage_regressions |>
   width(j = 1, width = 2.0) |>
   width(j = 2:5, width = 1.4)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(disadvantage_regressions_png, path = "disadvantage_regressions.png", zoom = 2, expand = 0)
 ```
 
@@ -1094,27 +1094,27 @@ indicate greater resilience**.
 #| label: residuals
 # ── Depression ─────────────────────────────────────────────────────────────────
 dep_int    <- coef(model_depression)[1]
-# Extract the fitted regression coefficient for reuse in the next analytic step.
+# Extract the fitted regression coefficient for reuse in the next analytic step
 dep_Zcumadv <- coef(model_depression)[2]
 
 dat_w3$predicted_depression <- dep_int + dep_Zcumadv * dat_w3$Zcumadv_depression
 dat_w3$residual_depression  <- dat_w3$ZcesD_sum - dat_w3$predicted_depression
-# flip: higher = more resilient
+# Flip: higher = more resilient
 dat_w3$residual_depressionR <- dat_w3$residual_depression * -1  
 
 # ── Substance Use ──────────────────────────────────────────────────────────────
 substance_int    <- coef(model_substance)[1]
-# Extract the fitted regression coefficient for reuse in the next analytic step.
+# Extract the fitted regression coefficient for reuse in the next analytic step
 substance_Zcumadv <- coef(model_substance)[2]
 
 dat_w3$predicted_substance  <- substance_int + substance_Zcumadv * dat_w3$Zcumadv_substance
 dat_w3$residual_substance   <- dat_w3$Zsubuse_W3 - dat_w3$predicted_substance
-# flip: higher = more resilient
+# Flip: higher = more resilient
 dat_w3$residual_substanceR  <- dat_w3$residual_substance * -1    
 
 # ── Education ─────────────────────────────────────────────────────────────────
 education_int    <- coef(model_education)[1]
-# Extract the fitted regression coefficient for reuse in the next analytic step.
+# Extract the fitted regression coefficient for reuse in the next analytic step
 education_Zcumadv <- coef(model_education)[2]
 
 dat_w3$predicted_education <- education_int + education_Zcumadv * dat_w3$Zcumadv_education
@@ -1122,13 +1122,13 @@ dat_w3$residual_education  <- dat_w3$Zedattain_W3 - dat_w3$predicted_education
 
 # ── Health ────────────────────────────────────────────────────────────────────
 health_int    <- coef(model_health)[1]
-# Extract the fitted regression coefficient for reuse in the next analytic step.
+# Extract the fitted regression coefficient for reuse in the next analytic step
 health_Zcumadv <- coef(model_health)[2]
 
 dat_w3$predicted_health <- health_int + health_Zcumadv * dat_w3$Zcumadv_health
 dat_w3$residual_health  <- dat_w3$Zgenhealth_W3 - dat_w3$predicted_health
 
-# rerun design with residual variables added
+# Rerun design with residual variables added
 design_w3 <- svydesign(
   ids     = ~1,
   weights = ~GSWGT3_2,
@@ -1197,7 +1197,7 @@ health_protect <- svyglm(
 
 ```{r}
 #| label: create step3 tables
-# create variable labels for protective factors
+# Create variable labels for protective factors
 var_labels_step3 <- list(
   Zcommconnect       ~ "Community Connectedness",
   Zcommintegr_disadv ~ "Community Integration",
@@ -1209,7 +1209,7 @@ var_labels_step3 <- list(
   bio_sexD           ~ "Sex (Female = 1)",
   Zwave3age          ~ "Age")
 
-# create function for table
+# Create function for table
 fmt_tbl_regression <- function(model) {
   tbl_regression(model,
                  exponentiate = FALSE,
@@ -1225,13 +1225,13 @@ fmt_tbl_regression <- function(model) {
     flextable::theme_apa()
 }
 
-# run function for each outcome to generate four tables
+# Run function for each outcome to generate four tables
 tbl_step3_depression <- fmt_tbl_regression(depression_protect)
-# Create `tbl_step3_substance` for use in the subsequent analysis/reporting steps.
+# Create `tbl_step3_substance` for use in the subsequent analysis/reporting steps
 tbl_step3_substance  <- fmt_tbl_regression(substance_protect)
-# Create `tbl_step3_education` for use in the subsequent analysis/reporting steps.
+# Create `tbl_step3_education` for use in the subsequent analysis/reporting steps
 tbl_step3_education  <- fmt_tbl_regression(education_protect)
-# Create `tbl_step3_health` for use in the subsequent analysis/reporting steps.
+# Create `tbl_step3_health` for use in the subsequent analysis/reporting steps
 tbl_step3_health     <- fmt_tbl_regression(health_protect)
 ```
 
@@ -1253,7 +1253,7 @@ association.
 #| label: save-step3-depression-png
 #| include: false
 
-# Build `tbl_step3_depression_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_step3_depression_png` through a reproducible sequence of data-transformation steps
 tbl_step3_depression_png <- tbl_step3_depression |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -1261,7 +1261,7 @@ tbl_step3_depression_png <- tbl_step3_depression |>
   fontsize(size = 13, part = "footer") |>
   fit_to_width(max_width = 7.3)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_step3_depression_png, path = paste0(fig_dir, "tbl_step3_depression.png"), zoom = 2, expand = 0)
 ```
 
@@ -1279,7 +1279,7 @@ Parent-child relationship (*b* = 0.10, *p* \< .001) and sex (*b* = 0.43,
 #| label: save-step3-substance-png
 #| include: false
 
-# Build `tbl_step3_substance_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_step3_substance_png` through a reproducible sequence of data-transformation steps
 tbl_step3_substance_png <- tbl_step3_substance |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -1287,7 +1287,7 @@ tbl_step3_substance_png <- tbl_step3_substance |>
   fontsize(size = 13, part = "footer") |>
   fit_to_width(max_width = 7.3)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_step3_substance_png, path = paste0(fig_dir, "tbl_step3_substance.png"), zoom = 2, expand = 0)
 ```
 
@@ -1309,7 +1309,7 @@ outcome.
 #| label: save-step3-education-png
 #| include: false
 
-# Build `tbl_step3_education_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_step3_education_png` through a reproducible sequence of data-transformation steps
 tbl_step3_education_png <- tbl_step3_education |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -1317,7 +1317,7 @@ tbl_step3_education_png <- tbl_step3_education |>
   fontsize(size = 13, part = "footer") |>
   fit_to_width(max_width = 7.3)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_step3_education_png, path = paste0(fig_dir, "tbl_step3_education.png"), zoom = 2, expand = 0)
 ```
 
@@ -1338,7 +1338,7 @@ in the depression and education models.
 #| label: save-step3-health-png
 #| include: false
 
-# Build `tbl_step3_health_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_step3_health_png` through a reproducible sequence of data-transformation steps
 tbl_step3_health_png <- tbl_step3_health |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 18, part = "body") |>
@@ -1346,7 +1346,7 @@ tbl_step3_health_png <- tbl_step3_health |>
   fontsize(size = 13, part = "footer") |>
   fit_to_width(max_width = 7.3)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_step3_health_png, path = paste0(fig_dir, "tbl_step3_health.png"), zoom = 2, expand = 0)
 ```
 
@@ -1382,7 +1382,7 @@ quantiles.
 ```{r}
 #| label: disadvantage-splits
 
-# Define `weighted_tertiles()` once so the same operation can be applied consistently across variables/models without duplicating code.
+# Define `weighted_tertiles()` once so the same operation can be applied consistently across variables/models without duplicating code
 weighted_tertiles <- function(var, design) {
   cut_points <- as.numeric(
     coef(
@@ -1413,7 +1413,7 @@ dat_w3$disadvantage_education <-
 dat_w3$disadvantage_health <-
   weighted_tertiles("Zcumadv_health", design_w3)
 
-# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates.
+# Define the survey-design object that carries the Wave III sampling weights into subsequent survey-weighted estimates
 design_w3 <- svydesign(
   ids = ~1,
   weights = ~GSWGT3_2,
@@ -1436,7 +1436,7 @@ model_depression_lo <- svyglm(
   design = subset(design_w3, disadvantage_depression == "lo"),
   family = gaussian() )
 
-# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights.
+# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights
 model_depression_hi <- svyglm(
   residual_depressionR ~ 
     Zcommconnect + Zcommintegr_disadv +
@@ -1456,7 +1456,7 @@ model_substance_lo <- svyglm(
   design = subset(design_w3, disadvantage_substance == "lo"),
   family = gaussian() )
 
-# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights.
+# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights
 model_substance_hi <- svyglm(
   residual_substanceR ~ 
     Zcommconnect + Zcommintegr_disadv +
@@ -1476,7 +1476,7 @@ model_education_lo <- svyglm(
   design = subset(design_w3, disadvantage_education == "lo"),
   family = gaussian() )
 
-# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights.
+# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights
 model_education_hi <- svyglm(
   residual_education ~ 
     Zcommconnect + Zcommintegr_disadv +
@@ -1496,7 +1496,7 @@ model_health_lo <- svyglm(
   design = subset(design_w3, disadvantage_health == "lo"),
   family = gaussian() )
 
-# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights.
+# Fit a survey-weighted Gaussian regression so coefficient estimates incorporate the specified sampling weights
 model_health_hi <- svyglm(
   residual_health ~ 
     Zcommconnect + Zcommintegr_disadv +
@@ -1511,7 +1511,7 @@ model_health_hi <- svyglm(
 
 ```{r}
 #| label: table helper function
-# create function to make comparison table
+# Create function to make comparison table
 make_protect_table <- function(model_full, model_lo, model_hi, outcome_label) {
   
   protective_vars <- c(
@@ -1577,19 +1577,19 @@ make_protect_table <- function(model_full, model_lo, model_hi, outcome_label) {
     italic(part = "footer")
 }
 
-# run function for each outcome
+# Run function for each outcome
 tbl_compare_depression <- make_protect_table(
   depression_protect, model_depression_lo, model_depression_hi, "Depression")
 
-# Create `tbl_compare_substance` for use in the subsequent analysis/reporting steps.
+# Create `tbl_compare_substance` for use in the subsequent analysis/reporting steps
 tbl_compare_substance <- make_protect_table(
   substance_protect, model_substance_lo,  model_substance_hi, "Substance Use")
 
-# Create `tbl_compare_education` for use in the subsequent analysis/reporting steps.
+# Create `tbl_compare_education` for use in the subsequent analysis/reporting steps
 tbl_compare_education <- make_protect_table(
   education_protect, model_education_lo, model_education_hi, "Education Attainment")
 
-# Create `tbl_compare_health` for use in the subsequent analysis/reporting steps.
+# Create `tbl_compare_health` for use in the subsequent analysis/reporting steps
 tbl_compare_health <- make_protect_table(
   health_protect, model_health_lo, model_health_hi,   "General Health")
 ```
@@ -1610,7 +1610,7 @@ both disadvantage groups.
 #| label: save-compare-depression-png
 #| include: false
 
-# Build `tbl_compare_depression_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_compare_depression_png` through a reproducible sequence of data-transformation steps
 tbl_compare_depression_png <- tbl_compare_depression |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -1619,7 +1619,7 @@ tbl_compare_depression_png <- tbl_compare_depression |>
   width(j = 1, width = 2.0) |>
   width(j = 2:4, width = 1.4)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_compare_depression_png, path = paste0(fig_dir, "tbl_compare_depression.png"), zoom = 3, expand = 0)
 ```
 
@@ -1640,7 +1640,7 @@ evaluated directly in the interaction models below.
 #| label: save-compare-substance-png
 #| include: false
 
-# Build `tbl_compare_substance_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_compare_substance_png` through a reproducible sequence of data-transformation steps
 tbl_compare_substance_png <- tbl_compare_substance |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -1649,7 +1649,7 @@ tbl_compare_substance_png <- tbl_compare_substance |>
   width(j = 1, width = 2.0) |>
   width(j = 2:4, width = 1.4)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_compare_substance_png, path = paste0(fig_dir, "tbl_compare_substance.png"), zoom = 3, expand = 0)
 ```
 
@@ -1670,7 +1670,7 @@ appropriate test of whether that difference is statistically meaningful.
 #| label: save-compare-education-png
 #| include: false
 
-# Build `tbl_compare_education_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_compare_education_png` through a reproducible sequence of data-transformation steps
 tbl_compare_education_png <- tbl_compare_education |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -1679,7 +1679,7 @@ tbl_compare_education_png <- tbl_compare_education |>
   width(j = 1, width = 2.0) |>
   width(j = 2:4, width = 1.4)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_compare_education_png, path = paste0(fig_dir, "tbl_compare_education.png"), zoom = 3, expand = 0)
 ```
 
@@ -1700,7 +1700,7 @@ as stand-alone evidence that subgroup effects differ.
 #| label: save-compare-health-png
 #| include: false
 
-# Build `tbl_compare_health_png` through a reproducible sequence of data-transformation steps.
+# Build `tbl_compare_health_png` through a reproducible sequence of data-transformation steps
 tbl_compare_health_png <- tbl_compare_health |>
   font(fontname = "Calibri", part = "all") |>
   fontsize(size = 20, part = "body") |>
@@ -1709,7 +1709,7 @@ tbl_compare_health_png <- tbl_compare_health |>
   width(j = 1, width = 2.0) |>
   width(j = 2:4, width = 1.4)
 
-# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio.
+# Save the completed output to the project output directory; this chunk is hidden from the rendered portfolio
 save_as_image(tbl_compare_health_png, path = paste0(fig_dir, "tbl_compare_health.png"), zoom = 3, expand = 0)
 ```
 

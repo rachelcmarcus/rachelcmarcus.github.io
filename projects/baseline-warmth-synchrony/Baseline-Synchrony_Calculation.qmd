@@ -1,11 +1,13 @@
 ---
-title: Baseline Synchrony Calculation
+title: Synchrony Calculation
 toc-depth: 3
 bibliography: references.bib
 warning: false
 editor: 
   markdown: 
     wrap: 72
+execute:
+  freeze: true
 ---
 
 # Overview

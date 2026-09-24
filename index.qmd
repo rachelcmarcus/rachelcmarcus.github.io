@@ -1,85 +1,166 @@
 ---
 title: "Portfolio Overview"
 toc: false
-editor: 
-  markdown: 
+editor:
+  markdown:
     wrap: 72
 ---
 
 ## About this portfolio
 
-This site collects a selection of applied research projects from my
-doctoral training in developmental psychology at Penn State, spanning
-statistical modeling, longitudinal data processing, and observational
-coding pipelines. Each project page includes the full analysis code
-alongside the rendered output, so the reasoning behind each step is
-visible, not just the final result.
+This site presents a selection of applied quantitative and behavioral
+research projects from my doctoral training in developmental psychology
+at Penn State. The projects span complex survey analysis, person-centered
+modeling, intensive longitudinal methods, and reproducible behavioral data
+pipelines.
 
-Code chunks are shown by default and can be collapsed using the toggle
-above each one, or using the page-wide toggle on the top right. The code
-and commits are hosted on my Github, which can be found here:
-<https://github.com/rachelcmarcus/rachelcmarcus.github.io>.
+Each project pairs methodological explanation with reproducible code so
+the reasoning behind the analysis is visible alongside the results.
+Code can be expanded or collapsed throughout the site. The source code
+and version history are available on [GitHub](https://github.com/rachelcmarcus/rachelcmarcus.github.io).
+
+---
 
 ## Projects
 
-::::::: grid
-::: {.g-col-12 .g-col-md-6}
-### [Resilience Analysis](projects/spr-cup/Analysis.qmd)
 
-A cumulative risk analysis using Add Health survey data, weighting
-structural disadvantage indicators by their empirical association with
-young adult outcomes to build outcome-specific disadvantage
-composites, then testing protective factors against those composites.
+:::: {.grid .gap-4}
 
-**Tools:** SPSS (data cleaning), R
+::: {.g-col-12}
+### [Resilience Across Structural Disadvantage](projects/spr-cup/Analysis.qmd)
+
+An end-to-end secondary analysis of Add Health examining why some young
+adults function better than expected given adolescent structural
+disadvantage. The workflow constructs outcome-specific, empirically
+weighted disadvantage composites, derives continuous residual-based
+resilience scores, and tests individual, family, school, and community
+factors associated with resilience across four young-adult outcomes.
+
+**Methods:** complex survey analysis, regression, composite construction,
+residual-based resilience
+
+**Tools:** R, SPSS, Quarto
+
+[View project →](projects/spr-cup/Analysis.qmd)
+
+[![](figures/spr-cup/tbl_compare_depression.png){width="50%"}](projects/spr-cup/Analysis.qmd#sec-step4)
+
+*Example result: resilience-factor comparisons across levels of structural disadvantage*
 :::
 
-::: {.g-col-12 .g-col-md-6}
-### [Warmth & Synchrony Processing](projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd)
+::::
 
-An end-to-end pipeline for CARMA-coded parent-infant warmth data, from
-raw second-by-second video coding through inter-rater reliability to
-time-lagged cross-correlation synchrony between mother and partner
-warmth during an observed interaction paradigm.
+---
 
-**Tools:** R
+:::: {.grid .gap-4}
+
+::: {.g-col-12}
+### [Moment-to-Moment Couple Warmth & Synchrony](projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd)
+
+A three-stage intensive longitudinal workflow for second-by-second
+behavioral coding of couple conflict interactions. The project moves
+from CARMA file import and inter-rater reliability through trajectory
+processing and visualization to pre-whitened cross-correlation analyses
+of concurrent and time-lagged dyadic warmth synchrony.
+
+**Methods:** behavioral coding, inter-rater reliability, time-series
+processing, ARIMA pre-whitening, cross-correlation
+
+**Tools:** R, CARMA, Quarto
+
+[View project →](projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd)
+
+[![](figures/baseline-warmth-synchrony/calculation/positive/blpwh_sync_avgccf_plot.png){fig-alt="Average cross-correlation function across couples showing warmth synchrony across positive and negative time lags" width="75%"}](projects/baseline-warmth-synchrony/Baseline-Synchrony_Calculation.qmd)
+
+*Example result: average lagged warmth synchrony across couples*
 :::
 
-::: {.g-col-12 .g-col-md-6}
-### [Still Face Processing](projects/still-face/6M_Still_Face_Raw_Import.qmd)
+::::
 
-A raw-to-analysis-ready pipeline for the Still Face paradigm, importing
-per-subject behavioral event logs, validating episode boundaries
-(Baseline / Still Face / Reunion), and computing duration and
-joint-attention variables for infant, parent, and dyadic behavior.
+---
 
-**Tools:** R, Python
+:::: {.grid .gap-4}
+
+::: {.g-col-12}
+### [Still Face Behavioral Coding Pipeline](projects/still-face/variable-dictionary.qmd)
+
+A raw-to-analysis-ready behavioral-data pipeline for the 6-month Still
+Face Paradigm. The workflow validates subject-level event logs and
+episode boundaries, translates continuous onset/offset coding into
+duration, frequency, and joint-attention measures, and performs
+systematic quality checks before producing a scored analytic dataset.
+
+**Methods:** event-log processing, behavioral coding, data validation,
+automated scoring
+
+**Tools:** R, Excel, Quarto
+
+[View project →](projects/still-face/variable-dictionary.qmd)
+
+```{mermaid}
+flowchart LR
+  A[Raw behavioral<br/>event logs] --> B[Validate IDs &<br/>episode boundaries]
+  B --> C[Assign events<br/>to episodes]
+  C --> D[Score duration,<br/>counts & overlap]
+  D --> E[Analysis-ready<br/>wide dataset]
+```
+
+*Example workflow: raw behavioral events to scored analysis variables*
 :::
 
-::: {.g-col-12 .g-col-md-6}
-### [Add Health: Risk-Taking Profiles & Predictors](projects/add-health/Profiles.qmd))
+::::
 
-This project runs a latent class analysis of Add Health survey data. It
-characterizes indicator and predictor profiles across classes, tests
-between-class differences through odds ratios and interaction effects, and
-validates class-predictor associations using the BCH three-step auxiliary
-variable method.
+---
 
-This is the code behind Study 1 of my dissertation, *[Rethinking Adolescent Risk-Taking: Examining Autonomy Support and Developmental Pathways to Positive and Negative Risk Behaviors Across Low- and High-Risk Contexts](https://etda.libraries.psu.edu/files/final_submissions/35471)* ([Google Scholar](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C39&q=Rethinking+Adolescent+Risk-Taking%3A+Examining+Autonomy+Support+And+Developmental+Pathways+To+Positive+And+Negative+Risk+Behaviors+Across+Low+And+High-Risk+Contexts&btnG=)).
+:::: {.grid .gap-4}
 
-**Tools:** R
+::: {.g-col-12}
+### [Positive & Negative Risk-Taking Profiles](projects/add-health/Profiles.qmd)
+
+Dissertation Study 1 used Add Health data to identify four adolescent
+profiles defined jointly by positive and negative risk-taking. The
+workflow moves from latent profile characterization to BCH-adjusted
+multinomial models estimating predictor odds ratios, followed by
+moderation analyses and Benjamini-Hochberg-corrected pairwise
+comparisons.
+
+This project is based on Study 1 of my dissertation,
+*[Rethinking Adolescent Risk-Taking: Examining Autonomy Support and
+Developmental Pathways to Positive and Negative Risk Behaviors Across Low-
+and High-Risk Contexts](https://etda.libraries.psu.edu/files/final_submissions/35471)*
+([Google Scholar](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C39&q=Rethinking+Adolescent+Risk-Taking%3A+Examining+Autonomy+Support+And+Developmental+Pathways+To+Positive+And+Negative+Risk+Behaviors+Across+Low+And+High-Risk+Contexts&btnG=)).
+
+**Methods:** latent profile analysis, BCH three-step models, multinomial
+logistic regression, moderation, multiple-comparison correction
+
+**Tools:** R, Latent GOLD, Quarto
+
+[View project →](projects/add-health/Profiles.qmd)
+
+[![](figures/add-health/indicator-profiles/profile_figure_pos.png){fig-alt="Positive risk-taking indicator profiles across four latent profiles" width="75%"}](projects/add-health/Profiles.qmd)
+
+*Example result: positive risk-taking indicators across the four latent profiles*
 :::
-:::::::
+
+::::
 
 ## Background
 
 Rachel Marcus, Ph.D., is a developmental psychologist whose work centers
-on adolescent risk-taking, parenting, prenatal substance exposure, and
-developmental cascades, with a broader interest in prevention science
-and early child development. She completed her doctoral training at Penn
-State in the Development, Risk, and Resilience Lab under Dr. Rina Eiden,
-building a methods toolkit that spans structural equation and latent
-variable modeling, latent class/profile analysis, and intensive
-longitudinal data analysis in R. She brings over seven years of
-experience across federally funded behavioral research, clinical trial
-management, and data infrastructure work.
+on adolescent development, parenting, prenatal substance exposure, and
+developmental cascades, with broader interests in prevention science and
+youth positive development. She completed her doctoral training at Penn
+State in the Development, Risk, and Resilience Lab under Dr. Rina Eiden and a 
+NIDA T-32 Prevention and Methodology Fellowship.
+
+Her methods training spans structural equation and latent variable
+modeling, regression and logistic regression, latent class/profile analysis,
+complex survey methods, intensive longitudinal analysis, and reproducible 
+research workflows in R. She brings more than seven years of experience across
+federally funded behavioral research, clinical research, and research data
+infrastructure.
+
+## Contact
+
+[LinkedIn](https://www.linkedin.com/in/rachel-c-marcus/) · [rachelmarcus.phd@gmail.com](mailto:rachelmarcus.phd@gmail.com)
+

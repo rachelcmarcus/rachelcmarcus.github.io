@@ -20,7 +20,7 @@ website:
         contents:
           - text: "Resilience Analysis"
             href: projects/spr-cup/Analysis.qmd
-          - section: "Baseline Warmth & Synchrony"
+          - section: "Warmth Synchrony Pipeline"
             contents:
               - text: "Import & Reliability"
                 href: projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd
@@ -28,7 +28,7 @@ website:
                 href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Processing.qmd
               - text: "Calculation"
                 href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Calculation.qmd
-          - section: "Still Face Processing"
+          - section: "Still Face Behavioral COding Pipeline"
             contents:
               - text: "Still Face Paradigm Data"
                 href: projects/still-face/variable-dictionary.qmd            
@@ -37,7 +37,7 @@ website:
               - text: "Still Face Import Pipeline (Python)"
                 href: projects/still-face-python.qmd
 
-          - section: "Add Health: Profiles & Predictors"
+          - section: "Positive & Negative Risk-Taking Profiles"
             contents:
               - text: "Profiles"
                 href: projects/add-health/Profiles.qmd
@@ -73,4 +73,4 @@ format:
       - spss.xml
 
 execute:
-  freeze: auto   # only re-runs code when the source file changes, keeps rebuilds fast
+  freeze: true   # only re-runs code when the source file changes, keeps rebuilds fast

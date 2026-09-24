@@ -1,5 +1,5 @@
 ---
-title: Baseline Synchrony Processing
+title: Synchrony Processing
 toc: true
 toc-depth: 3
 bibliography: references.bib

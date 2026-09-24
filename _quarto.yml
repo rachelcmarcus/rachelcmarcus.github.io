@@ -28,7 +28,7 @@ website:
                 href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Processing.qmd
               - text: "Calculation"
                 href: projects/baseline-warmth-synchrony/Baseline-Synchrony_Calculation.qmd
-          - section: "Still Face Behavioral COding Pipeline"
+          - section: "Still Face Behavioral Coding Pipeline"
             contents:
               - text: "Still Face Paradigm Data"
                 href: projects/still-face/variable-dictionary.qmd            

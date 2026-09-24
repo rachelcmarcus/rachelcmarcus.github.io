@@ -71,6 +71,14 @@ library(gt)
 #| include: false
 
 BL_WH <- read_sav("C:/Users/rcm5550/Box/ff (cast.casbox )/DATA & SYNTAX/COMPUTED DATA/Baseline/Observed couple relationship/BL_WH.sav")
+
+# Demo dataset is used only for rendered row-level previews
+
+demo_path <- "C:/Users/rcm5550/Desktop/portfolio-starter/docs/projects/baseline-warmth-synchrony/BL_WH_demo.csv"
+BL_WH_Demo <- read.csv(
+  demo_path,
+  check.names = FALSE)
+
 ```
 
 ```{r}
@@ -112,6 +120,27 @@ BL_WH_WidetoLong <- BL_WH %>%
   mutate(second = as.numeric(second))
 ```
 
+
+```{r}
+#| include: false 
+# Transform demo data wide to long for displayed previews only
+BL_WH_Demo_WidetoLong <- BL_WH_Demo %>%
+  pivot_longer(
+    cols = matches("^[^.]+\\.\\d+$"),
+    names_to = c(".value", "second"),
+    names_sep = "\\.") %>%
+  mutate(second = as.numeric(second))
+
+# Create demo long dataset for displayed previews only
+BL_WH_Demo_Long <- BL_WH_Demo_WidetoLong %>%
+  select(ID, second, blmnwh, blmpwh, blfnwh, blfpwh)
+
+BL_WH_Demo_Long$blmnwh[BL_WH_Demo_Long$blmnwh == 0] <- NA
+BL_WH_Demo_Long$blmpwh[BL_WH_Demo_Long$blmpwh == 0] <- NA
+BL_WH_Demo_Long$blfnwh[BL_WH_Demo_Long$blfnwh == 0] <- NA
+BL_WH_Demo_Long$blfpwh[BL_WH_Demo_Long$blfpwh == 0] <- NA
+```
+
 **Recode Missing Values**
 
 ```{r}
@@ -126,10 +155,16 @@ BL_WH_Long$blmnwh[BL_WH_Long$blmnwh == 0] <- NA
 BL_WH_Long$blmpwh[BL_WH_Long$blmpwh == 0] <- NA
 BL_WH_Long$blfnwh[BL_WH_Long$blfnwh == 0] <- NA
 BL_WH_Long$blfpwh[BL_WH_Long$blfpwh == 0] <- NA
-
-# Preview dataset
-knitr::kable(head(BL_WH_Long, 5), caption = "Long Baseline Warmth Data")
 ```
+
+```{r}
+# echo: false
+
+knitr::kable(
+  head(BL_WH_Demo_Long, 5),
+  caption = "Long Baseline Warmth Data (Demo)")
+```
+
 
 **Create Negative Interaction Dataset**
 
@@ -158,9 +193,31 @@ BL_WH_Neg_Long$personF <- as.factor(BL_WH_Neg_Long$personF)
 
 # Set personN as factor
 BL_WH_Neg_Long$personN <- as.numeric(BL_WH_Neg_Long$personN)
+```
 
-# Preview dataset
-knitr::kable(head(BL_WH_Neg_Long, 20), caption = "Long Baseline Warmth Negative Interaction Data")
+```{r}
+#| echo: false
+# Create demo negative-interaction dataset for displayed preview only
+BL_WH_Demo_Neg_Long <- BL_WH_Demo_Long %>%
+  select(ID, second, blmnwh, blfnwh) %>%
+  pivot_longer(
+    cols = c(blmnwh, blfnwh),
+    names_to = "source",
+    values_to = "blnwh") %>%
+  mutate(
+    personF = case_when(
+      source == "blmnwh" ~ "mom",
+      source == "blfnwh" ~ "partner"),
+    personN = case_when(
+      source == "blmnwh" ~ 1,
+      source == "blfnwh" ~ 2))
+
+BL_WH_Demo_Neg_Long$personF <- as.factor(BL_WH_Demo_Neg_Long$personF)
+BL_WH_Demo_Neg_Long$personN <- as.numeric(BL_WH_Demo_Neg_Long$personN)
+
+knitr::kable(
+  head(BL_WH_Demo_Neg_Long, 20),
+  caption = "Long Baseline Warmth Negative Interaction Data (Demo)")
 ```
 
 **Create Positive Interaction Dataset**
@@ -190,9 +247,32 @@ BL_WH_Pos_Long$personF <- as.factor(BL_WH_Pos_Long$personF)
 
 # Set personN as factor
 BL_WH_Pos_Long$personN <- as.numeric(BL_WH_Pos_Long$personN)
+```
 
-# Preview dataset
-knitr::kable(head(BL_WH_Pos_Long, 20), caption = "Long Baseline Warmth Positive Interaction Data")
+```{r}
+#| echo: false
+
+# Create demo positive-interaction dataset for displayed preview only
+BL_WH_Demo_Pos_Long <- BL_WH_Demo_Long %>%
+  select(ID, second, blmpwh, blfpwh) %>%
+  pivot_longer(
+    cols = c(blmpwh, blfpwh),
+    names_to = "source",
+    values_to = "blpwh") %>%
+  mutate(
+    personF = case_when(
+      source == "blmpwh" ~ "mom",
+      source == "blfpwh" ~ "partner"),
+    personN = case_when(
+      source == "blmpwh" ~ 1,
+      source == "blfpwh" ~ 2))
+
+BL_WH_Demo_Pos_Long$personF <- as.factor(BL_WH_Demo_Pos_Long$personF)
+BL_WH_Demo_Pos_Long$personN <- as.numeric(BL_WH_Demo_Pos_Long$personN)
+
+knitr::kable(
+  head(BL_WH_Demo_Pos_Long, 20),
+  caption = "Long Baseline Warmth Positive Interaction Data (Demo)")
 ```
 
 The three long-format datasets are saved in a hidden export chunk so the
@@ -306,11 +386,21 @@ ggsave("../../figures/baseline-warmth-synchrony/processing/fig-blpositive-warmth
 # Select Sample Couples for Facet Plots
 # Create filtered dataset for plot
 
+# Select three specific couples for illustrative facet plots
+sample_ids <- c(112, 254, 137)
+
+# Assign fixed pseudonymous IDs above 250 for display
+sample_id_map <- c(
+  "112" = "364",
+  "254" = "527",
+  "137" = "418"
+)
+
 BL_WH_Neg_Long_Filtered <- BL_WH_Neg_Long %>%
-  filter(ID %in% c(110, 112, 149, 162, 172, 178, 175, 182, 183, 209, 246, 254, 279, 303))
+  filter(ID %in% sample_ids)
 
 BL_WH_Pos_Long_Filtered <- BL_WH_Pos_Long %>%
-  filter(ID %in% c(110, 112, 149, 162, 172, 178, 175, 182, 183, 209, 246, 254, 279, 303))
+  filter(ID %in% sample_ids)
 ```
 
 ```{r}
@@ -319,13 +409,16 @@ BL_WH_Pos_Long_Filtered <- BL_WH_Pos_Long %>%
 #| code-summary: "figure code"
 
 # Plot a smaller negative-discussion subset so within-couple temporal patterns remain visually interpretable
-fig_blnegative_warmth_subset <- ggplot(data = BL_WH_Neg_Long_Filtered %>% filter(ID %in% head(unique(ID), 3)), aes(second, blnwh, color = personF)) +
+fig_blnegative_warmth_subset <- ggplot(data = BL_WH_Neg_Long_Filtered, aes(second, blnwh, color = personF)) +
   geom_line(lwd = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +
   labs(title = "Couple Warmth During Negative Discussion (Sample Couples)") +
   xlab("Time - 0 to 600 seconds") +
   ylab("No (1) to High Warmth (7)") +
-  facet_wrap(~ ID, ncol = 3) +
+  facet_wrap(
+    ~ ID,
+    ncol = 3,
+    labeller = labeller(ID = sample_id_map)) +
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),
@@ -354,13 +447,15 @@ ggsave("../../figures/baseline-warmth-synchrony/processing/fig-blnegative-warmth
 #| code-fold: true
 
 # Plot a smaller positive-discussion subset so within-couple temporal patterns remain visually interpretable
-fig_blpositive_warmth_subset <- ggplot(data = BL_WH_Pos_Long_Filtered %>% filter(ID %in% head(unique(ID), 3)), aes(second, blpwh, color = personF)) +
-  geom_line(lwd = 1.5) +
+fig_blpositive_warmth_subset <- ggplot(data = BL_WH_Pos_Long_Filtered, aes(second, blpwh, color = personF)) +  geom_line(lwd = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +
   labs(title = "Couple Warmth During Positive Discussion (Sample Couples)") +
   xlab("Time - 0 to 600 seconds") +
   ylab("No (1) to High Warmth (7)") +
-  facet_wrap(~ ID, ncol = 3) +
+  facet_wrap(
+    ~ ID,
+    ncol = 3,
+    labeller = labeller(ID = sample_id_map)) +  
   theme_minimal(base_size = 16) +
   theme(legend.position = "bottom", plot.title = element_text(face = "bold"),
         axis.title = element_text(size = 16), axis.text = element_text(size = 14),

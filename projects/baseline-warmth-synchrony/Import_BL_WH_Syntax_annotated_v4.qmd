@@ -123,6 +123,8 @@ library(irr)
 # Set file path to demo folder
 DEMO_PATH <- "C:/Users/rcm5550/Desktop/portfolio-starter/docs/projects/baseline-warmth-synchrony/demo files"
 
+DEMO_PATHsave <- "C:/Users/rcm5550/Desktop/portfolio-starter/docs/projects/baseline-warmth-synchrony"
+
 demo_files <- list.files(DEMO_PATH, pattern = "\\.csv$", full.names = TRUE)
 
 demo_files2 <- list.files(DEMO_PATH, pattern = "\\.csv$", full.names = FALSE)
@@ -1160,4 +1162,14 @@ PRODUCTION_DATASET_SUMMARY <- tibble(
 
 # Create table to view dataset summary
 knitr::kable(PRODUCTION_DATASET_SUMMARY, caption = "Unique Couple IDs by Dataset")
+```
+
+```{r}
+#| include: false
+
+# Save processed demo data
+write.csv(
+  demo_merged,
+  file.path(DEMO_PATHsave, "BL_WH_demo.csv"),
+  row.names = FALSE)
 ```

@@ -7,7 +7,7 @@ editor:
   markdown: 
     wrap: 72
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 # Overview
@@ -115,6 +115,26 @@ BL_WH_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State Unive
 BL_WH_Pos_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data/BL_WH_Pos_Long.csv")
 BL_WH_Neg_Long <- read_csv("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data/BL_WH_Neg_Long.csv")
 
+```
+
+```{r}
+#| label: anonymize-table-ids
+#| include: false
+
+# Create a stable display-only ID key for tables
+all_table_ids <- sort(unique(c(BL_WH_Pos_Long$ID, BL_WH_Neg_Long$ID)))
+
+set.seed(202605)
+table_id_key <- tibble(
+  ID = all_table_ids,
+  display_ID = sample(1000:9999, length(all_table_ids), replace = FALSE))
+
+anonymize_table_ids <- function(data) {
+  data %>%
+    left_join(table_id_key, by = "ID") %>%
+    select(-ID) %>%
+    rename(ID = display_ID)
+}
 ```
 
 # Positive Interaction
@@ -274,9 +294,9 @@ blpwh_sync_max <- blpwh_sync_results %>%
   mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
   ungroup()
 
-knitr::kable(head(blpwh_sync_max, 10), digits = 3,
+knitr::kable(anonymize_table_ids(head(blpwh_sync_max, 10)), digits = 3,
              caption = 
-               "Maximum Synchrony, Positive Interaction (first 10 couples)")
+               "Maximum Synchrony, Positive Interaction (Randomized Couples, Fake IDs)")
 ```
 
 ### Max Synchrony Interpretation
@@ -320,9 +340,9 @@ blpwh_sync_max_interpret_preview <- blpwh_sync_max_interpret %>%
   select(ID, max_sync, max_lag, leader, lead_time_seconds,
          relationship, strength, significant)
 
-knitr::kable(head(blpwh_sync_max_interpret_preview, 10), digits = 3, 
+knitr::kable(anonymize_table_ids(head(blpwh_sync_max_interpret_preview, 10)), digits = 3, 
              caption = 
-               "Interpreted Maximum Synchrony, Positive Interaction (first 10 couples)")
+               "Interpreted Maximum Synchrony, Positive Interaction (Randomized Couples, Fake IDs)")
 ```
 
 ## Descriptives
@@ -472,6 +492,13 @@ blpwh_scatter_sync
 ggsave("../../figures/baseline-warmth-synchrony/calculation/positive/blpwh_scatter_sync.png", plot = blpwh_scatter_sync, width = 8, height = 6, dpi = 300)
 ```
 
+```{r}
+#| label: ccf-display-ids
+#| include: false
+
+ccf_display_ids <- c(112, 254, 137)
+```
+
 ### Grid Panel
 
 A closer look at a handful of individual couples' full cross-correlation
@@ -481,13 +508,13 @@ functions, rather than the summarized max-synchrony view above.
 #| label: blpwh-ccfplot
 # Show multiple couples in a grid
 blpwh_sync_ccfplot <- function(blpwh_sync_results, n_couples = 12) {
-  # Select first n couples
-  selected_ids <- unique(blpwh_sync_results$ID)[1:min(n_couples, length(unique(blpwh_sync_results$ID)))]
+  # Select specified couples for display
+  selected_ids <- ccf_display_ids
 
   blpwh_sync_results %>%
     filter(ID %in% selected_ids) %>%
     ggplot(aes(x = lag, y = acf)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "#DDDDDD", size = 0.3) +
     geom_line(color = "#332288", size = 0.5) +
     geom_point(aes(color = significant), size = 1) +
     geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
@@ -501,7 +528,7 @@ blpwh_sync_ccfplot <- function(blpwh_sync_results, n_couples = 12) {
          caption = str_wrap("Full cross-correlation function by lag for a sample of couples, with 95% confidence bands and significant lags highlighted.", width = 100)) +
     theme_minimal(base_size = 16) +
     theme(legend.position = "bottom",
-          strip.text = element_text(face = "bold", size = 14),
+          strip.text = element_blank(),
           axis.title = element_text(size = 14), axis.text = element_text(size = 12),
           panel.grid = element_blank(),
           plot.caption = element_text(hjust = 0, size = 16))
@@ -557,7 +584,7 @@ are partner leading.
 #| label: blpwh-avgccf
 # Plot average CCF
 blpwh_sync_avgccf_plot <- ggplot(blpwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#DDDDDD") +
   geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
               alpha = 0.3, fill = "#332288") +
   geom_line(color = "#332288", size = 1.2) +
@@ -605,7 +632,7 @@ blpwh_sync_concurrent <- blpwh_sync_results %>%
   select(ID, concurrent_acf = acf, concurrent_sig = significant,
          concurrent_lower = lower_ci, concurrent_upper = upper_ci)
 
-knitr::kable(head(blpwh_sync_concurrent, 10), digits = 3, caption = str_wrap("Concurrent Synchrony, Positive Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blpwh_sync_concurrent, 10)), digits = 3, caption = str_wrap("Concurrent Synchrony, Positive Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ## Time-Lagged
@@ -635,7 +662,7 @@ blpwh_sync_lagmax <- blpwh_sync_lagged %>%
   ungroup()
 
 # View results
-knitr::kable(head(blpwh_sync_lagmax, 10), digits = 3, caption = str_wrap("Maximum Time-Lagged Synchrony, Positive Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blpwh_sync_lagmax, 10)), digits = 3, caption = str_wrap("Maximum Time-Lagged Synchrony, Positive Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ```{r}
@@ -656,7 +683,7 @@ blpwh_sync_timetolag <- blpwh_sync_results %>%
     .groups = "drop"
   )
 
-knitr::kable(head(blpwh_sync_timetolag, 10), caption = str_wrap("Time to First Significant Synchrony, Positive Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blpwh_sync_timetolag, 10)), caption = str_wrap("Time to First Significant Synchrony, Positive Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ### Strongest Time-Lag
@@ -713,6 +740,7 @@ blpwh_sync_summarytable <- blpwh_sync_summary %>%
   # Select and order columns for display
   select(ID, n_significant_lags, strongest_lag, strongest_acf,
          has_concurrent, has_mom_leads, has_partner_leads) %>%
+  anonymize_table_ids() %>%
   # Take first 20 couples for display (or use head(10) for fewer)
   head(20) %>%
   
@@ -969,11 +997,12 @@ blpwh_sync_compare <- blpwh_sync_results %>%
     .groups = "drop"
   ) %>%
   head(10) %>%
+  anonymize_table_ids() %>%
   
   gt() %>%
   tab_header(
     title = "Comparison of Three Synchrony Approaches",
-    subtitle = "First 10 couples"
+    subtitle = "Randomized Couples, Fake IDs"
   ) %>%
   fmt_number(columns = c(first_sig_lag, strongest_lag), decimals = 0) %>%
   fmt_number(columns = strongest_r, decimals = 3) %>%
@@ -1122,7 +1151,7 @@ blnwh_sync_max <- blnwh_sync_results %>%
   mutate(max_abs_sync = abs(max_sync)) %>%  # Add absolute value column
   ungroup()
 
-knitr::kable(head(blnwh_sync_max, 10), digits = 3, caption = str_wrap("Maximum Synchrony, Negative Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blnwh_sync_max, 10)), digits = 3, caption = str_wrap("Maximum Synchrony, Negative Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ### Max Synchrony Interpretation
@@ -1172,7 +1201,7 @@ blnwh_sync_max_interpret_preview <- blnwh_sync_max_interpret %>%
   select(ID, max_sync, max_lag, leader, lead_time_seconds,
          relationship, strength, significant)
 
-knitr::kable(head(blnwh_sync_max_interpret_preview, 10), digits = 3, caption = str_wrap("Interpreted Maximum Synchrony, Negative Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blnwh_sync_max_interpret_preview, 10)), digits = 3, caption = str_wrap("Interpreted Maximum Synchrony, Negative Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ## Descriptives
@@ -1319,13 +1348,13 @@ ggsave("../../figures/baseline-warmth-synchrony/calculation/negative/blnwh_scatt
 #| label: blnwh-ccfplot
 # Show multiple couples in a grid
 blnwh_sync_ccfplot <- function(blnwh_sync_results, n_couples = 12) {
-  # Select first n couples
-  selected_ids <- unique(blnwh_sync_results$ID)[1:min(n_couples, length(unique(blnwh_sync_results$ID)))]
+  # Select specified couples for display
+  selected_ids <- ccf_display_ids
 
   blnwh_sync_results %>%
     filter(ID %in% selected_ids) %>%
     ggplot(aes(x = lag, y = acf)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "#DDDDDD", size = 0.3) +
     geom_line(color = "#332288", size = 0.5) +
     geom_point(aes(color = significant), size = 1) +
     geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
@@ -1339,7 +1368,7 @@ blnwh_sync_ccfplot <- function(blnwh_sync_results, n_couples = 12) {
          caption = str_wrap("Full cross-correlation function by lag for a sample of couples, with 95% confidence bands and significant lags highlighted.", width = 100)) +
     theme_minimal(base_size = 16) +
     theme(legend.position = "bottom",
-          strip.text = element_text(face = "bold", size = 14),
+          strip.text = element_blank(),
           axis.title = element_text(size = 14), axis.text = element_text(size = 12),
           panel.grid = element_blank(),
           plot.caption = element_text(hjust = 0, size = 16))
@@ -1387,7 +1416,7 @@ blnwh_sync_avgccf <- blnwh_sync_results %>%
 #| label: blnwh-avgccf
 # Plot average CCF
 blnwh_sync_avgccf_plot <- ggplot(blnwh_sync_avgccf, aes(x = lag, y = mean_acf)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#DDDDDD") +
   geom_ribbon(aes(ymin = lower_se, ymax = upper_se),
               alpha = 0.3, fill = "#332288") +
   geom_line(color = "#332288", size = 1.2) +
@@ -1439,7 +1468,7 @@ blnwh_sync_heatmap <- function(blnwh_sync_results, n_couples = 50) {
     mutate(couple_row = factor(match(ID, selected_ids))) %>%
     ggplot(aes(x = lag, y = couple_row, fill = acf)) +
     geom_tile() +
-    scale_fill_gradient2(low = "#88CCEE", mid = "white", high = "#CC6677",
+    scale_fill_gradient2(low = "#88CCEE", mid = "#DDDDDD", high = "#CC6677",
                          midpoint = 0, limits = c(-1, 1),
                          name = "Correlation") +
     labs(title = "Cross-Correlation Heatmap: Random Assortment of Couples in the Study",
@@ -1483,7 +1512,7 @@ blnwh_sync_concurrent <- blnwh_sync_results %>%
   select(ID, concurrent_acf = acf, concurrent_sig = significant,
          concurrent_lower = lower_ci, concurrent_upper = upper_ci)
 
-knitr::kable(head(blnwh_sync_concurrent, 10), digits = 3, caption = str_wrap("Concurrent Synchrony, Negative Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blnwh_sync_concurrent, 10)), digits = 3, caption = str_wrap("Concurrent Synchrony, Negative Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ## Time Lagged Synchrony
@@ -1509,7 +1538,7 @@ blnwh_sync_lagmax <- blnwh_sync_lagged %>%
   ungroup()
 
 # View results
-knitr::kable(head(blnwh_sync_lagmax, 10), digits = 3, caption = str_wrap("Maximum Time-Lagged Synchrony, Negative Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blnwh_sync_lagmax, 10)), digits = 3, caption = str_wrap("Maximum Time-Lagged Synchrony, Negative Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ```{r}
@@ -1530,7 +1559,7 @@ blnwh_sync_timetolag <- blnwh_sync_results %>%
     .groups = "drop"
   )
 
-knitr::kable(head(blnwh_sync_timetolag, 10), caption = str_wrap("Time to First Significant Synchrony, Negative Interaction (first 10 couples)", width = 100))
+knitr::kable(anonymize_table_ids(head(blnwh_sync_timetolag, 10)), caption = str_wrap("Time to First Significant Synchrony, Negative Interaction (Randomized Couples, Fake IDs)", width = 100))
 ```
 
 ## Summary Table - ID
@@ -1580,6 +1609,7 @@ blnwh_sync_summarytable <- blnwh_sync_summary %>%
   # Select and order columns for display
   select(ID, n_significant_lags, strongest_lag, strongest_acf,
          has_concurrent, has_mom_leads, has_partner_leads) %>%
+  anonymize_table_ids() %>%
   # Take first 20 couples for display (or use head(10) for fewer)
   head(20) %>%
   
@@ -1828,11 +1858,12 @@ blnwh_sync_compare <- blnwh_sync_results %>%
     .groups = "drop"
   ) %>%
   head(10) %>%
+  anonymize_table_ids() %>%
   
   gt() %>%
   tab_header(
     title = "Comparison of Three Synchrony Approaches",
-    subtitle = "First 10 couples"
+    subtitle = "Randomized Couples, Fake IDs"
   ) %>%
   fmt_number(columns = c(first_sig_lag, strongest_lag), decimals = 0) %>%
   fmt_number(columns = strongest_r, decimals = 3) %>%

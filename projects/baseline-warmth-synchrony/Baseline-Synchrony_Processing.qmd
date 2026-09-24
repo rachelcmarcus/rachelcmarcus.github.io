@@ -22,7 +22,7 @@ here:
 3.  the data is split into separate negative- and positive-discussion
     long datasets, one row per person per second; and
 4.  warmth trajectories over time are plotted, both for the full sample
-    and a representative subset in [Panel Plots].
+    and a representative subset in [Panel Plots](#secPanel).
 
 # Data Cleaning
 

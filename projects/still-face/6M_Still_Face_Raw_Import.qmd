@@ -139,6 +139,7 @@ PATH_CODING_LOG  <- file.path(
 
 **Load Packages**
 ```{r}
+#| warnings: false
 library(readxl)     # Import raw Excel event logs and supporting workbooks
 library(flextable)  # Format variable dictionaries and summary tables for rendered output
 library(officer)    # Support flextable rendering and document-compatible table formatting

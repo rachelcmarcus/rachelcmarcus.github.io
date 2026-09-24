@@ -1,5 +1,5 @@
 ---
-title: "Baseline Warmth Data Import, Processing, and Reliability"
+title: "Warmth Data Import, Processing, and Reliability"
 date: "2026-08-10"
 bibliography: references.bib
 editor: 

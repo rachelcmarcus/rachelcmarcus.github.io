@@ -1,24 +1,86 @@
 ---
-title: "Still Face Variable Dictionary"
+title: "Still Face Behavioral Coding: Variable Dictionary"
 toc-depth: 2
 bibliography: references.bib
+editor:
+  markdown:
+    wrap: 72
 ---
+
+# Project Overview
+
+This portfolio project overviews the transformation of **continuous
+behavioral coding from the 6-month Still Face Paradigm** into analysis
+ready variables describing infant behavior, caregiver behavior, and
+dyadic interaction across Baseline, Still Face, and Reunion episodes.
+
+The **Variable Dictionary is the main landing page**. It explains the
+task, shows the structure of the raw event-log data, and illustrates how
+the coding system maps onto the scored variables used for analysis. The
+companion [Raw Import & Scoring Pipeline](6M_Still_Face_Raw_Import.qmd)
+page documents the technical workflow used to:
+
+- validate each subject's file,
+- identify episode boundaries,
+- score durations/counts/joint-attention measures,
+- reshape the data, and
+- run quality-control checks before the resulting dataset is handed off
+  for final scoring.
+
+::: {.callout-note appearance="simple" icon="false"}
+### Portfolio Navigation
+
+**1. Variable Dictionary & Project Overview** → **2. Raw Import &
+Scoring Pipeline**
+
+[Variable Dictionary](variable-dictionary.qmd) · [Raw Import & Scoring
+Pipeline](6M_Still_Face_Raw_Import.qmd)
+:::
+
+If you are reviewing the technical implementation, continue to the [Raw
+Import & Scoring
+Pipeline](6M_Still_Face_Raw_Import.qmd#sec-technical-workflow). The
+import page also contains a standalone summary so it can be read
+directly without first reviewing this dictionary.
 
 # Still Face Paradigm
 
-The Still Face Paradigm [@tronick] is a brief, structured interaction task used to study early social-emotional regulation and the caregiver-infant relationship. It has three phases, or episodes, which are described below:
+The Still Face Paradigm [@tronick] is a brief, structured interaction
+task used to study early social-emotional regulation and the
+caregiver-infant relationship. It has three phases, or episodes, which
+are described below:
 
--   **Baseline (bl)** - the mother engages in normal face-to-face play with her infant, establishing each dyad's typical interactive style
--   *a 15 second transition, where the mother looks away before returning her gaze towards her infant*
--   **Still Face (sf)** - holding a neutral, unmoving expression for a set interval, while remaining present but unresponsive
--   **Reunion (re)** - the mother resumes normal interaction, and the dyad's recovery is observed
+- **Baseline (bl)** - the mother engages in normal face-to-face play
+  with her infant, establishing each dyad's typical interactive style
+- *a 15 second transition, where the mother looks away before returning
+  her gaze towards her infant*
+- **Still Face (sf)** - holding a neutral, unmoving expression for a set
+  interval, while remaining present but unresponsive
+- **Reunion (re)** - the mother resumes normal interaction, and the
+  dyad's recovery is observed
 
-Beacuse infants expect consistent, responsive interaction; the mother withdrawing it is a mild stressor that reveals how the infant regulates distress, and how the mother-infant dyad repairs afterward.
+Because infants expect consistent, responsive interaction, the temporary
+withdrawal of maternal responsiveness acts as a mild stressor that
+reveals how the infant regulates distress and how the mother-infant dyad
+repairs afterward.
 
-Observational coding, the data the below table is drawn from, captures this by having trained coders mark the onset and offset of discrete behavioral states (e.g. gaze direction, facial affect, vocalization, motor behavior) continuously throughout each episode. This results in raw data with timestamped start/stop events per behavior per subject, as seen in the sample raw data. This data must be imported, cleaned, and transformed into variables in the sample data dictionary table.
+Trained coders capture these interactions by continuously marking the
+onset and offset of discrete behavioral states (e.g., gaze direction,
+facial affect, vocalization, and motor behavior) throughout each
+episode. The resulting raw event logs contain timestamped start/stop
+events for each behavior and subject. The import pipeline validates and
+transforms those event-level records into the scored variables
+summarized in the dictionary below.
 
 ::: {.callout-tip appearance="simple" icon="false"}
-**Scientific relevance of Individual and dyadic differences**: the *magnitude* of the still-face effect and the *speed/completeness* of reunion recovery are used as indicators of infant self-regulation, mother-infant synchrony, and attachment-relevant processes. Blunted still-face reactivity, minimal recovery, or atypical patterns (e.g., disorganized behavior, dysregulated affect) have been linked in the literature to risk factors such as maternal depression, prenatal substance exposure, and early adversity.
+**Scientific relevance of Individual and dyadic differences**: the
+*magnitude* of the still-face effect and the *speed/completeness* of
+reunion recovery are used as indicators of infant self-regulation,
+mother-infant synchrony, and attachment-relevant processes. Blunted
+still-face reactivity, minimal recovery, or atypical patterns (e.g.,
+disorganized behavior, dysregulated affect) have been linked in the
+literature to risk factors such as maternal depression, prenatal
+substance exposure, and early adversity.
 :::
 
 ## Raw Data Example
@@ -26,6 +88,8 @@ Observational coding, the data the below table is drawn from, captures this by h
 ```{r}
 #| label: load-packages
 #| warning: false
+
+# Load packages used to import the raw Excel example and format the portfolio tables
 library(readxl)
 library(flextable)
 library(officer)
@@ -37,6 +101,8 @@ library(dplyr)
 #| echo: false
 #| warning: false
 
+# ── Import and Restrict the Raw Event-Log Example ──────────────────────────────
+# Read one raw event-log workbook used only to illustrate the source data structure
 raw <- read_excel("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Still Face/6M Event Logs/111_SFF_SF6M_64 - Event Logs.xlsx")
 
 demo <- raw %>%
@@ -73,6 +139,8 @@ ft_example
 #| echo: false
 #| warning: false
 
+# ── Define the Sample Variable Dictionary ─────────────────────────────────────
+# Create a compact sample showing how scored behaviors map across Baseline, Still Face, Reunion, and total variables
 var_dict <- tibble::tribble(
   ~Domain,  ~Variable,                                      ~Baseline,        ~`Still Face`,     ~Reunion,          ~Total,
   "Infant", "Duration crying/negative vocal",                "blnegvoc",       "sfnegvoc",        "renegvoc",        "totnegvoc",
@@ -151,7 +219,7 @@ apply_segments <- function(ft, i, j, segs) {
   chunks <- lapply(seq_len(nrow(segs)), function(k) {
     as_chunk(segs$text[k], props = fp_text(color = segs$color[k], bold = segs$bold[k]))
   })
-  mk_par(ft, i = i, j = j, value = do.call(as_paragraph, chunks))   # mk_par, not compose — see below
+  mk_par(ft, i = i, j = j, value = do.call(as_paragraph, chunks))  # Mk_par, not compose — see below
 }
 
 
@@ -185,6 +253,8 @@ ft_dictionary
 #| label: still-face-data-example-code
 #| code-summary: "data example code"
 
+# ── Build the Annotated Raw-Data Example ──────────────────────────────────────
+# Restrict the raw event log to two short windows so the rendered example remains readable
 demo <- raw %>%
   filter(Time_Relative_sf <= 2.12 | (Time_Relative_sf >= 119.995 & Time_Relative_sf <= 120.02)) %>%
   transmute(
@@ -220,6 +290,8 @@ ft_example <- flextable(demo) %>%
 #| label: variable-dictionary-code
 #| code-summary: "data dictionary code"
 
+# ── Build and Format the Variable Dictionary ──────────────────────────────────
+# Recreate the sample dictionary and color-code variable-name components to make the naming system visually explicit
 var_dict <- tibble::tribble(
   ~Domain,  ~Variable,                                      ~Baseline,        ~`Still Face`,     ~Reunion,          ~Total,
   "Infant", "Duration crying/negative vocal",                "blnegvoc",       "sfnegvoc",        "renegvoc",        "totnegvoc",
@@ -298,7 +370,7 @@ apply_segments <- function(ft, i, j, segs) {
   chunks <- lapply(seq_len(nrow(segs)), function(k) {
     as_chunk(segs$text[k], props = fp_text(color = segs$color[k], bold = segs$bold[k]))
   })
-  mk_par(ft, i = i, j = j, value = do.call(as_paragraph, chunks))   # mk_par, not compose — see below
+  mk_par(ft, i = i, j = j, value = do.call(as_paragraph, chunks))  # Mk_par, not compose — see below
 }
 
 ft_dictionary <- flextable(var_dict) %>%

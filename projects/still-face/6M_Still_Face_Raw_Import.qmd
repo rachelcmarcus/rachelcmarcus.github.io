@@ -4,90 +4,97 @@ date: "2026-08-20"
 editor: 
   markdown: 
     wrap: 72
+execute:
+  freeze: true
 ---
 
-# What this import pipeline does
+# Overview
 
-This R syntax file takes the raw per-subject event log exports
-@still-face-data-example (one Excel file per subject) and turns them
-into ONE wide dataset -- one row per subject, one column per scored
-variable -- ready to be further scored in SPSS.
+This page documents the technical import and scoring pipeline for the
+**6-month Still Face behavioral-coding data**. The source files are
+per-subject Excel event logs containing timestamped starts/stops for
+coded infant and caregiver behaviors across Baseline, Still Face, and
+Reunion.
 
-Step by step, it:
+::: {.callout-tip appearance="simple" icon="false"}
+**Already read the Variable Dictionary?** [Jump directly to the
+technical workflow](#sec-technical-workflow).
+:::
 
-1.  Reads every subject's raw Excel event log.
-2.  Checks each file for basic problems (wrong ID, unrecognized
-    behavioral codes).
-3.  Finds the Baseline / Still Face / Reunion episode boundaries for
-    that subject (the "anchors").
-4.  Labels every row with which episode it falls in.
-5.  Computes every duration/count/joint-attention variable, per episode.
-6.  Reshapes each subject from long (one row per coded event) to wide
-    (one row per subject).
-7.  Stacks every subject into one dataset and checks for duplicate IDs.
-8.  In the source project, saves that one merged, wide dataset as an
-    SPSS `.sav` file.
+# Still Face Paradigm
 
-```{r}
-#| label: setup
-#| include: false
-# This just sets default options for how each code chunk behaves when the
-# file is knit (echo = TRUE means show the code; message/warning = FALSE
-# means hide routine package-loading messages and warnings in the output).
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
-```
+The Still Face Paradigm [@tronick] is a brief, structured interaction
+task used to study early social-emotional regulation and the
+caregiver-infant relationship. It has three phases, or episodes, which
+are described below:
 
-```{r}
-#| label: file-paths
-#| include: false
+- **Baseline (bl)** - the mother engages in normal face-to-face play
+  with her infant, establishing each dyad's typical interactive style
+- *a 15 second transition, where the mother looks away before returning
+  her gaze towards her infant*
+- **Still Face (sf)** - holding a neutral, unmoving expression for a set
+  interval, while remaining present but unresponsive
+- **Reunion (re)** - the mother resumes normal interaction, and the
+  dyad's recovery is observed
 
-# EDIT THIS LINE: point PROJECT_ROOT at your own "ff (cast.casbox )" Box folder.
-PROJECT_ROOT <- "C:/Users/rcm5550/Box/ff (cast.casbox )"
+Because infants expect consistent, responsive interaction, the temporary
+withdrawal of maternal responsiveness acts as a mild stressor that
+reveals how the infant regulates distress and how the mother-infant dyad
+repairs afterward.
 
-# Raw (non-consensus) event log files -- one ID-named subfolder per subject.
-PATH_EVENT_LOGS <- file.path(
-  PROJECT_ROOT,
-  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/General"
-)
+Trained coders capture these interactions by continuously marking the
+onset and offset of discrete behavioral states (e.g., gaze direction,
+facial affect, vocalization, and motor behavior) throughout each
+episode. The resulting raw event logs contain timestamped start/stop
+events for each behavior and subject. The import pipeline validates and
+transforms those event-level records into the scored variables
+summarized in the dictionary below.
 
-# Consensus-coded event logs can live in EITHER of these two folders
-# (never both, for the same subject) -- also one ID-named subfolder per subject within each.
-PATH_EVENT_LOGS_RELIABILITY <- file.path(
-  PROJECT_ROOT,
-  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/Reliability"
-)
-PATH_EVENT_LOGS_TRAINING <- file.path(
-  PROJECT_ROOT,
-  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/Training"
-)
+::: {.callout-tip appearance="simple" icon="false"}
+**Scientific relevance of Individual and dyadic differences**: the
+*magnitude* of the still-face effect and the *speed/completeness* of
+reunion recovery are used as indicators of infant self-regulation,
+mother-infant synchrony, and attachment-relevant processes. Blunted
+still-face reactivity, minimal recovery, or atypical patterns (e.g.,
+disorganized behavior, dysregulated affect) have been linked in the
+literature to risk factors such as maternal depression, prenatal
+substance exposure, and early adversity.
+:::
 
-# File path and name for raw data export
-PATH_OUTPUT_RAW <- file.path(
-  PROJECT_ROOT,
-  "DATA & SYNTAX/RAW DATA-DO NOT CHANGE/Still Face/6M_Still_Face_Raw.sav"
-)
+::: {.callout-note appearance="simple" icon="false"}
+### Portfolio Navigation
 
-# The hand-checked coding log, used for the episode boundary check.
-PATH_CODING_LOG <- file.path(
-  PROJECT_ROOT,
-  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coding Log SFF Still Face.xlsx"
-)
-```
+**1. Variable Dictionary & Project Overview** → **2. Raw Import &
+Scoring Pipeline**
 
-Load required packages
+[Variable Dictionary](variable-dictionary.qmd) · [Raw Import & Scoring
+Pipeline](6M_Still_Face_Raw_Import.qmd)
+:::
 
-```{r}
-#| label: libraries
+# Technical Workflow {#sec-technical-workflow}
 
-# Core data-wrangling verbs (filter, mutate, pivot_wider, the pipe, etc)
-library(tidyverse)
-# Reads .xlsx files -- needed for the raw event log export
-library(readxl)
-```
+The companion [Variable Dictionary](variable-dictionary.qmd) introduces
+the paradigm, shows a raw-data example, and explains how coded behaviors
+map onto analysis variables.
 
-# 1. Reference tables
+**The pipeline:**
 
-## Episode markers
+- imports every subject's raw event log;
+- validates file IDs and expected Subject/Behavior codes;
+- identifies Baseline, Still Face, and Reunion episode boundaries;
+- assigns each coded event to the appropriate episode;
+- computes duration, count, and joint-attention measures;
+- reshapes one subject at a time from event-level long data to one-row
+  scored output;
+- prefers consensus-coded files when present and prevents duplicate
+  consensus sources;
+- validates the merged dataset and compares calculated episode
+  boundaries against the hand-checked coding log; and
+- produces one wide scored dataset for downstream analysis.
+
+## 1. Reference Tables
+
+### Episode markers
 
 Certain codes are only used to mark the start and end of an episode, and
 we can use these to mark the edges between Baseline, Still Face, and
@@ -101,6 +108,48 @@ the codes between them.
 :::
 
 ```{r}
+#| label: file-paths
+#| include: false
+
+# EDIT THIS LINE: point PROJECT_ROOT at your own "ff (cast.casbox )" Box folder.
+PROJECT_ROOT <- "C:/Users/rcm5550/Box/ff (cast.casbox )"
+
+# Raw (non-consensus) event log files -- one ID-named subfolder per subject.
+PATH_EVENT_LOGS <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/6 Month XLX Files/General")
+
+# Reliability Files
+PATH_EVENT_LOGS_RELIABILITY <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/6 Month XLX Files/Reliability")
+
+# Reliability Training Files
+PATH_EVENT_LOGS_TRAINING <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coded Still Face Videos - XLX Files/6 Month XLX Files/Training")
+
+# Coding Log Path
+PATH_CODING_LOG  <- file.path(
+  PROJECT_ROOT,
+  "FF Staff Folders Outcomes/Observational Coding/Still Face - SFF/Coding Log SFF Still Face.xlsx")
+
+
+```
+
+**Load Packages**
+```{r}
+library(readxl)     # Import raw Excel event logs and supporting workbooks
+library(flextable)  # Format variable dictionaries and summary tables for rendered output
+library(officer)    # Support flextable rendering and document-compatible table formatting
+library(dplyr)      # Clean, transform, join, summarize, and validate behavioral data
+library(tidyr)      # Reshape event-level data between long and wide formats
+library(stringr)    # Clean and standardize text fields, file names, and variable labels
+library(purrr)      # Iterate over subject files and apply scoring functions across datasets
+```
+
+
+```{r}
 #| label: still-face-data-episodes
 #| echo: false
 
@@ -108,12 +157,15 @@ library(readxl)
 library(flextable)
 library(officer)
 library(dplyr)
+library(tidyr)
+library(stringr)
+library(purrr)
 
 raw <- read_excel("C:/Users/rcm5550/OneDrive - The Pennsylvania State University/Still Face/6M Event Logs/111_SFF_SF6M_64 - Event Logs.xlsx")
 
 # Two illustrative windows from the raw BORIS export:
-#  1) the opening seconds of Baseline, showing several behaviors starting at once
-#  2) the Baseline -> Still Face transition, showing the epoch flags the syntax reads
+# 1) The opening seconds of Baseline, showing several behaviors starting at once
+# 2) The Baseline -> Still Face transition, showing the epoch flags the syntax reads
 demo <- raw %>%
   filter(Time_Relative_sf <= 2.12 | (Time_Relative_sf >= 119.995 & Time_Relative_sf <= 120.02)) %>%
   transmute(
@@ -159,7 +211,7 @@ EPISODE_MARKERS <- c(
   "REUNION TRANSITION NO VOCAL")
 ```
 
-## Behavior reference table
+### Behavior reference table
 
 `BEHAVIOR_REFERENCE` lists every Subject/Behavior combination we expect
 to see in a raw file. Built into the pipeline is a data validation
@@ -177,69 +229,69 @@ prefixed variable names (see the @score-spec section below).
 BEHAVIOR_REFERENCE <- tribble(
   ~Subject,  ~Behavior,                          ~category,               ~var_stem,
 
-  # --- infant gaze: who the infant is looking at ---
-  # infant looking at mom
+  # --- Infant gaze: who the infant is looking at ---
+  # Infant looking at mom
   "Infant",  "Looking at Mom",                   "infant_gaze",        "yeslook",
-  # infant looking away from mom
+  # Infant looking away from mom
   "Infant",  "Looking Away",                     "infant_gaze",        "notlook",
-  # infant's gaze could not be coded (face/eyes not visible on video)
+  # Infant's gaze could not be coded (face/eyes not visible on video)
   "Infant",  "Infant Gaze Not Visible",           "infant_gaze",        "gaze_nv",
 
-  # --- infant facial expression ---
-  # neutral facial expression
+  # --- Infant facial expression ---
+  # Neutral facial expression
   "Infant",  "Neutral Expression",               "infant_expression",  "neuexp",
-  # smiling / positive facial expression
+  # Smiling / positive facial expression
   "Infant",  "Smile/Positive Expression",        "infant_expression",  "posexp",
-  # frowning / negative facial expression
+  # Frowning / negative facial expression
   "Infant",  "Frown/Negative Expression",        "infant_expression",  "negexp",
-  # infant's face could not be coded (not visible on video)
+  # Infant's face could not be coded (not visible on video)
   "Infant",  "Infant Face Not Visible",           "infant_expression",  "face_nv",
 
-  # --- infant vocalization ---
-  # infant not vocalizing
+  # --- Infant vocalization ---
+  # Infant not vocalizing
   "Infant",  "Infant Silent",                    "infant_vocal",       "silvoc",
-  # neutral vocalization
+  # Neutral vocalization
   "Infant",  "Neutral Vocal",                    "infant_vocal",       "neuvoc",
-  # laughing / positive vocalization
+  # Laughing / positive vocalization
   "Infant",  "Laughing/Positive Vocal",          "infant_vocal",       "posvoc",
-  # crying / negative vocalization
+  # Crying / negative vocalization
   "Infant",  "Crying/Negative Vocal",            "infant_vocal",       "negvoc",
 
-  # --- infant orientation (Still Face episode only) ---
-  # infant oriented toward an object rather than the parent
+  # --- Infant orientation (Still Face episode only) ---
+  # Infant oriented toward an object rather than the parent
   "Infant",  "Object Orientation",               "infant_orientation", "obj",
-  # infant oriented toward the parent
+  # Infant oriented toward the parent
   "Infant",  "Parent Orientation",               "infant_orientation", "par",
 
-  # --- infant discrete self-soothing/escape actions (Still Face only) ---
-  # infant engaging in a self-comforting behavior
+  # --- Infant discrete self-soothing/escape actions (Still Face only) ---
+  # Infant engaging in a self-comforting behavior
   "Infant",  "Infant Comforting",                "infant_action",      "comf",
-  # infant engaging in an escape behavior (e.g., arching away)
+  # Infant engaging in an escape behavior (e.g., arching away)
   "Infant",  "Infant Escape",                    "infant_action",      "esc",
 
-  # --- mother/parent affect ---
-  # high-intensity negative affect
+  # --- Mother/parent affect ---
+  # High-intensity negative affect
   "Mother",  "High Negative Affect",             "mother_affect",      "negaffH",
-  # low-intensity negative affect
+  # Low-intensity negative affect
   "Mother",  "Negative Affect",                  "mother_affect",      "negaffL",
-  # neutral affect
+  # Neutral affect
   "Mother",  "Neutral Affect",                   "mother_affect",      "neuaff",
-  # low-intensity positive affect
+  # Low-intensity positive affect
   "Mother",  "Positive Affect",                  "mother_affect",      "posaffL",
-  # high-intensity positive affect
+  # High-intensity positive affect
   "Mother",  "High Positive Affect",             "mother_affect",      "posaffH",
-  # affect not visible
-  "Mother", "Mom Affect Not Visible",            "mother_affect",      "noaffect", #ID107
+  # Affect not visible
+  "Mother", "Mom Affect Not Visible",            "mother_affect",      "noaffect",  # ID107
 
-  # --- mother talking/touching the infant ---
-  # mom is talking to and/or touching the infant
+  # --- Mother talking/touching the infant ---
+  # Mom is talking to and/or touching the infant
   "Mother",  "Mom Talking/Touching Infant",      "mother_talktouch",   "tlktch",
-  # mom is NOT talking to or touching the infant
+  # Mom is NOT talking to or touching the infant
   "Mother",  "Mom NOT Talking/Touching Infant",  "mother_talktouch",   "nottlktch"
 )
 ```
 
-# 2. Import one subject's raw event log
+## 2. Import one subject's raw event log
 
 This section builds the tools to import in a single subject's raw Excel
 file and do an initial data quality check before the raw data is scored.
@@ -249,7 +301,7 @@ file and do an initial data quality check before the raw data is scored.
 ```{r}
 #| label: extract-id-function
 # Every event log file name starts with the subject's numeric ID
-# (e.g. "567_SFF_SF6M - Raw Data.xlsx" -> "567")
+# (E.g. "567_SFF_SF6M - Raw Data.xlsx" -> "567")
 
 # This function pulls  ID out of the file name
 extract_id_from_filename <- function(filename) {
@@ -271,22 +323,25 @@ extract_id_from_filename <- function(filename) {
 
 ```{r}
 #| label: import-function
-# This function imports raw data file and conducts initial data cleaning
+# ── Import and Validate One Raw Event Log ───────────────────────────────────────
 import_event_log <- function(filename_full) {
 
+    # ── Identify the Source File ──────────────────────────────────────────────────
   # Keep the short file name around for readable error messages
   filename_short <- basename(filename_full)
 
   # Get the subject ID using function built above
   filename_id <- extract_id_from_filename(filename_short)
 
+    # ── Import the Raw Excel Export ───────────────────────────────────────────────
   # Read the raw Excel export
   data <- read_excel(filename_full) %>%
-    as.data.frame() # Convert from a tibble to a plain data frame 
+    as.data.frame()  # Convert from a tibble to a plain data frame
   
+    # ── Detect and Remove Blank Template Rows ─────────────────────────────────────
   # Identify blank template rows: no Behavior coded at all, and both the
-  # relative time and duration are exactly 0 -- these are empty leftover
-  # rows in the export
+  # Relative time and duration are exactly 0 -- these are empty leftover
+  # Rows in the export
   blank_rows <- data %>%
     filter(is.na(Behavior), Time_Relative_sf == 0, Duration_sf == 0)
   
@@ -297,13 +352,14 @@ import_event_log <- function(filename_full) {
       BLANK_ROW_LOG,
       tibble(ID = filename_id, file = filename_short, n_blank_rows = nrow(blank_rows))
     )
-    # Drop  blank rows 
+    # Drop  blank rows
     data <- data %>%
       filter(!(is.na(Behavior) & Time_Relative_sf == 0 & Duration_sf == 0))
   }
 
+    # ── Standardize Time and Record Order ─────────────────────────────────────────
   # Time_Relative_hms comes in as a full datetime with a fake Excel-created date
-  # Reformat to "HH:MM:SS" text 
+  # Reformat to "HH:MM:SS" text
   data <- data %>%
     mutate(Time_Relative_hms = format(Time_Relative_hms, "%H:%M:%S"))
 
@@ -314,6 +370,7 @@ import_event_log <- function(filename_full) {
     # Duplicate the "Subject ID" column into a plain, easy-to-type "ID" column
     mutate(ID = as.character(`Subject ID`))  
 
+    # ── Validate Subject ID ───────────────────────────────────────────────────────
   # Collect every distinct ID value found inside the file itself
   internal_ids <- unique(data$ID)
 
@@ -333,12 +390,12 @@ import_event_log <- function(filename_full) {
     )
   }
 
-  # Pull out every Subject/Behavior combination in this file that ISN'T a episode marker 
+  # Pull out every Subject/Behavior combination in this file that ISN'T a episode marker
   observed_behaviors <- data %>%
     filter(!(Behavior %in% EPISODE_MARKERS)) %>%
     distinct(Subject, Behavior)
 
-  # Compare those observed combinations against BEHAVIOR_REFERENCE, keeping only the ones that do NOT have a match there.
+  # Compare those observed combinations against BEHAVIOR_REFERENCE, keeping only the ones that do NOT have a match there
   unmapped <- observed_behaviors %>%
     anti_join(BEHAVIOR_REFERENCE, by = c("Subject", "Behavior"))
 
@@ -356,7 +413,7 @@ import_event_log <- function(filename_full) {
 }
 ```
 
-# 3. Episode anchors
+## 3. Episode anchors
 
 "Anchors" are the `Code` numbers marking where each episode (Baseline,
 Still Face, Reunion) starts and ends for one subject.
@@ -369,7 +426,7 @@ missing or the anchors come out of order.
 
 ```{r}
 #| label: episode-anchor-function
-# Function to mark start and stop of each episode
+# ── Identify Episode Anchors ────────────────────────────────────────────────────
 get_episode_anchors <- function(data) {
 
   # Subject ID, kept for clearer error messages below
@@ -382,9 +439,9 @@ get_episode_anchors <- function(data) {
   reunion_end <- max(data$Code)
 
   # "15 S NO INFANT VOCAL" brackets the baseline-to-still-face transition
-  # buffer: baseline ends where this marker STARTS, and still face doesn't
-  # begin until this marker STOPS. The gap in between (a ~15-30s "do not code"
-  # transition) is correctly left unclassified (episode = NA).
+  # Buffer: baseline ends where this marker STARTS, and still face doesn't
+  # Begin until this marker STOPS. The gap in between (a ~15-30s "do not code"
+  # Transition) is correctly left unclassified (episode = NA)
 
   # Every "State start" row for this marker
   no_infant_vocal_start <- data %>%
@@ -406,7 +463,7 @@ get_episode_anchors <- function(data) {
   sf_start <- first(no_infant_vocal_stop$Code)
 
   # Same start/stop logic for the still-face-to-reunion transition buffer,
-  # this time using the "REUNION TRANSITION NO EXPRESSION" marker
+  # This time using the "REUNION TRANSITION NO EXPRESSION" marker
 
   # Every "State start" row for this marker
   reunion_transition_start <- data %>%
@@ -439,7 +496,7 @@ get_episode_anchors <- function(data) {
   anchor_sequence <- c(bl_start, bl_end, sf_start, sf_end, reunion_start, reunion_end)
 
   # Data quality check: Stop if that sequence is incorrect
-  # (e.g. a marker miscoded earlier/later than it should be)
+  # (E.g. a marker miscoded earlier/later than it should be)
   if (is.unsorted(anchor_sequence, strictly = FALSE)) {
     stop("Episode anchors are not in increasing order for ID: ", filename_note)
   }
@@ -449,7 +506,7 @@ get_episode_anchors <- function(data) {
 }
 ```
 
-# 4. Label every row with its episode
+## 4. Label every row with its episode
 
 `episode` records which episode each row belongs to: `1` = Baseline,
 `2`= Still Face, `3` = Reunion. Rows that fall in the transition buffers
@@ -458,7 +515,7 @@ expected to come out as `NA` to be correctly excluded from scoring.
 
 ```{r}
 #| label: episode-function
-# Function to assign each row of data to the correct episode
+# ── Assign Events to Episodes ───────────────────────────────────────────────────
 assign_episode <- function(data, anchors) {
   data %>%
     mutate(episode = case_when(
@@ -474,11 +531,11 @@ assign_episode <- function(data, anchors) {
 }
 ```
 
-# 5. Put it together: import + anchor + label one subject
+## 5. Put it together: import + anchor + label one subject
 
 ```{r}
 #| label: label-raw-function
-# Function to fully import, clean, and label each raw data file
+# ── Run the Single-Subject Import Workflow ──────────────────────────────────────
 import_and_label_one_subject <- function(filename_full) {
 
   # Import and validate this subject's raw file
@@ -496,7 +553,7 @@ import_and_label_one_subject <- function(filename_full) {
 }
 ```
 
-# 6. Scoring building blocks
+## 6. Scoring building blocks
 
 Duration of behavior is only calculated from "State start" rows, as
 these rows have the full duration of that state, so "State stop" rows
@@ -510,7 +567,7 @@ subject spent in one behavior during one episode.
 
 ```{r}
 #| label: duration-function
-# Function to compute total duration of behavior in each episodie
+# ── Score Behavior Duration ─────────────────────────────────────────────────────
 compute_duration <- function(data, subj, behavior, episode_num) {
   data %>%
     # Keep only rows matching this subject, this behavior, "State start" events, and this episode
@@ -525,12 +582,12 @@ compute_duration <- function(data, subj, behavior, episode_num) {
 
 ```{r}
 #| label: count-function
-# Function for how m any times behavior occurs in an episode
+# ── Score Behavior Counts ───────────────────────────────────────────────────────
 compute_count <- function(data, subj, behavior, episode_num) {
   data %>%
     # Keep only rows matching this subject, this behavior, "State start"
-    # events, and this episode -- each such row is one "entry" into the
-    # behavior
+    # Events, and this episode -- each such row is one "entry" into the
+    # Behavior
     filter(Subject == subj, Behavior == behavior,
            Event_Type == "State start", episode == episode_num) %>%
     # Count the matching rows
@@ -540,45 +597,45 @@ compute_count <- function(data, subj, behavior, episode_num) {
 
 ```{r}
 #| label: overlap-function
-# Function for the overlap (in seconds) between two behaviors to score joint attention (i.e. mom talking/touching WHILE infant looks at mom) 
+# ── Score Behavioral Overlap ──────────────────────────────────────────────────── (i.e. mom talking/touching WHILE infant looks at mom)
 compute_overlap_duration <- function(data, subject_a, behavior_a, subject_b, behavior_b, episode) {
 
   # Build every interval (start, end) for behavior A in this episode
   intervals_a <- data %>%
     filter(Subject == subject_a, Behavior == behavior_a,
            Event_Type == "State start", episode == episode) %>%
-    # start_a = when it began; end_a = start plus how long it lasted.
+    # Start_a = when it began; end_a = start plus how long it lasted
     transmute(start_a = Time_Relative_sf, end_a = Time_Relative_sf + Duration_sf)
 
   # Build every interval (start, end) for behavior B in this episode
   intervals_b <- data %>%
     filter(Subject == subject_b, Behavior == behavior_b,
            Event_Type == "State start", episode == episode) %>%
-    # start_b = when it began; end_b = start plus how long it lasted.
+    # Start_b = when it began; end_b = start plus how long it lasted
     transmute(start_b = Time_Relative_sf, end_b = Time_Relative_sf + Duration_sf)
 
   # If either behavior never occurred in this episode, there can be no
-  # overlap -- returns 0 rather than trying to cross an empty table
+  # Overlap -- returns 0 rather than trying to cross an empty table
   if (nrow(intervals_a) == 0 | nrow(intervals_b) == 0) {
     return(0)
   }
 
   # Pair every interval of A with every interval of B (a full cross join),
   crossing(intervals_a, intervals_b) %>%
-    # then compute how much each pair overlaps: the later of the two
-    # starts to the earlier of the two ends, floored at 0 (pmax/pmin) so
-    # non-overlapping pairs contribute nothing negative
+    # Then compute how much each pair overlaps: the later of the two
+    # Starts to the earlier of the two ends, floored at 0 (pmax/pmin) so
+    # Non-overlapping pairs contribute nothing negative
     mutate(overlap = pmax(0, pmin(end_a, end_b) - pmax(start_a, start_b))) %>%
     # Add up the overlap across every pair,
     summarise(total = sum(overlap)) %>%
-    # and pull that single total out as a plain number
+    # And pull that single total out as a plain number
     pull(total)
 }
 ```
 
 ```{r}
 #| label: episode-has-codes-function
-# Function to confirm at least one behavior was coded during the episode, a quality check: Distinguishes "episode was coded and at least one behavior happened" resulting in behaviors not coded as 0 from "episode was never coded at all" and then behaviors are coded as NA
+# ── Check Whether an Episode Contains Valid Codes ───────────────────────────────: Distinguishes "episode was coded and at least one behavior happened" resulting in behaviors not coded as 0 from "episode was never coded at all" and then behaviors are coded as NA
 episode_has_codes <- function(data, episode_num) {
   data %>%
     # Rows in this episode that are NOT boundary markers
@@ -590,14 +647,14 @@ episode_has_codes <- function(data, episode_num) {
 
 ```{r}
 #| label: blank-uncoded-episodes-function
-# Lookup: episode number -> the variable-name prefix used for that episode.
-# 6M Still Face - Baseline: v2sfbl; 6M Still Face - Still Face: v2sfsf; 6M Still Face - Reunion: v2sfre; 
+# Lookup: episode number -> the variable-name prefix used for that episode
+# 6M Still Face - Baseline: v2sfbl; 6M Still Face - Still Face: v2sfsf; 6M Still Face - Reunion: v2sfre;
 EPISODE_PREFIX <- c(`1` = "v2sfbl", `2` = "v2sfsf", `3` = "v2sfre")
 
-# Function: Given a finished one-row "scores" tibble for a subject, blank out every
-# v2sf<episode>... column for any episode that had zero real codes (per
-# episode_has_codes() above), so an uncoded episode reads as missing rather
-# than as all zeros
+# ── Blank Uncoded Episode Scores ────────────────────────────────────────────────
+# V2sf<episode>... column for any episode that had zero real codes (per
+# Episode_has_codes() above), so an uncoded episode reads as missing rather
+# Than as all zeros
 blank_uncoded_episodes <- function(scores, data) {
   # Check each of the three episodes in turn
   for (episode in c(1, 2, 3)) {
@@ -616,7 +673,7 @@ blank_uncoded_episodes <- function(scores, data) {
 }
 ```
 
-# 7. Score spec: one row per duration/count variable
+## 7. Score spec: one row per duration/count variable
 
 `SCORE_SPEC` is the master list that drives the long-to-wide reshape in
 the next section. Each row has: "final variable name = subject's
@@ -627,107 +684,107 @@ behavior, in this episode, as this metric (duration or count)."
 SCORE_SPEC <- tribble(
   ~var_name,          ~subject,  ~behavior,                          ~episode, ~metric,
 
-  # --- infant vocal: baseline / still face / reunion ---
-   # negative vocal duration, one row per episode
+  # --- Infant vocal: baseline / still face / reunion ---
+   # Negative vocal duration, one row per episode
   "v2sfblnegvoc      ", "Infant", "Crying/Negative Vocal", 1, "duration",
   "v2sfsfnegvoc      ", "Infant", "Crying/Negative Vocal", 2, "duration",
   "v2sfrenegvoc      ", "Infant", "Crying/Negative Vocal", 3, "duration",
   
-   # neutral vocal duration, one row per episode
+   # Neutral vocal duration, one row per episode
   "v2sfblneuvoc      ", "Infant", "Neutral Vocal", 1, "duration",
   "v2sfsfneuvoc      ", "Infant", "Neutral Vocal", 2, "duration",
   "v2sfreneuvoc      ", "Infant", "Neutral Vocal", 3, "duration",
  
-   # positive vocal duration, one row per episode
+   # Positive vocal duration, one row per episode
   "v2sfblposvoc      ", "Infant", "Laughing/Positive Vocal", 1, "duration",
   "v2sfsfposvoc      ", "Infant", "Laughing/Positive Vocal", 2, "duration",
   "v2sfreposvoc      ", "Infant", "Laughing/Positive Vocal", 3, "duration",
 
-   # silent duration, one row per episode
+   # Silent duration, one row per episode
   "v2sfblsilvoc      ", "Infant", "Infant Silent", 1, "duration",
   "v2sfsfsilvoc      ", "Infant", "Infant Silent", 2, "duration",
   "v2sfresilvoc      ", "Infant", "Infant Silent", 3, "duration",
 
-  # ------------------------------------------------------------------------------ 
+  # ------------------------------------------------------------------------------
  
-  # --- infant expression: baseline / still face / reunion ---
-   # negative expression duration, one row per episode
+  # --- Infant expression: baseline / still face / reunion ---
+   # Negative expression duration, one row per episode
   "v2sfblnegexp      ", "Infant", "Frown/Negative Expression", 1, "duration",
   "v2sfsfnegexp      ", "Infant", "Frown/Negative Expression", 2, "duration",
   "v2sfrenegexp      ", "Infant", "Frown/Negative Expression", 3, "duration",
  
-   # neutral expression duration, one row per episode
+   # Neutral expression duration, one row per episode
   "v2sfblneuexp      ", "Infant", "Neutral Expression", 1, "duration",
   "v2sfsfneuexp      ", "Infant", "Neutral Expression", 2, "duration",
   "v2sfreneuexp      ", "Infant", "Neutral Expression", 3, "duration",
  
-   # positive expression duration, one row per episode
+   # Positive expression duration, one row per episode
   "v2sfblposexp      ", "Infant", "Smile/Positive Expression", 1, "duration",
   "v2sfsfposexp      ", "Infant", "Smile/Positive Expression", 2, "duration",
   "v2sfreposexp      ", "Infant", "Smile/Positive Expression", 3, "duration",
 
-  # ------------------------------------------------------------------------------ 
+  # ------------------------------------------------------------------------------
  
-  # --- infant gaze: baseline / reunion only (blank at still face) ---
-   # looking-at-mom duration, baseline and reunion
+  # --- Infant gaze: baseline / reunion only (blank at still face) ---
+   # Looking-at-mom duration, baseline and reunion
   "v2sfblyeslook     ", "Infant", "Looking at Mom", 1, "duration",
   "v2sfreyeslook     ", "Infant", "Looking at Mom", 3, "duration",
   
-   # looking-away duration, baseline and reunion
+   # Looking-away duration, baseline and reunion
   "v2sfblnotlook     ", "Infant", "Looking Away", 1, "duration",
   "v2sfrenotlook     ", "Infant", "Looking Away", 3, "duration",
 
-  # --- infant orientation: still face only ---
-   # object-oriented duration, still face only
+  # --- Infant orientation: still face only ---
+   # Object-oriented duration, still face only
   "v2sfsfobj         ", "Infant", "Object Orientation", 2, "duration",
   
-   # parent-oriented duration, still face only
+   # Parent-oriented duration, still face only
   "v2sfsfpar         ", "Infant", "Parent Orientation", 2, "duration",
   
-  # ------------------------------------------------------------------------------ 
+  # ------------------------------------------------------------------------------
   
-  # --- infant discrete actions: still face only ---
-   # comforting duration, still face only
+  # --- Infant discrete actions: still face only ---
+   # Comforting duration, still face only
   "v2sfsfcomf        ", "Infant", "Infant Comforting", 2, "duration",
  
-   # escape duration, still face only
+   # Escape duration, still face only
   "v2sfsfesc         ", "Infant", "Infant Escape", 2, "duration",
  
-   # comforting COUNT (number of separate instances), still face only
+   # Comforting COUNT (number of separate instances), still face only
   "v2sfsfcomfcount   ", "Infant", "Infant Comforting", 2, "count",
  
-   # escape COUNT (number of separate instances), still face only
+   # Escape COUNT (number of separate instances), still face only
   "v2sfsfesccount    ", "Infant", "Infant Escape", 2, "count",
 
-  # ------------------------------------------------------------------------------ 
+  # ------------------------------------------------------------------------------
   
-  # --- mom affect: baseline / reunion only (blank at still face) ---
-   # high negative affect duration, baseline and reunion
+  # --- Mom affect: baseline / reunion only (blank at still face) ---
+   # High negative affect duration, baseline and reunion
   "v2sfblnegaffH     ", "Mother", "High Negative Affect", 1, "duration",
   "v2sfrenegaffH     ", "Mother", "High Negative Affect", 3, "duration",
   
-  # low negative affect duration, baseline and reunion
+  # Low negative affect duration, baseline and reunion
   "v2sfblnegaffL     ", "Mother", "Negative Affect", 1, "duration",
   "v2sfrenegaffL     ", "Mother", "Negative Affect", 3, "duration",
  
-   # neutral affect duration, baseline and reunion
+   # Neutral affect duration, baseline and reunion
   "v2sfblneuaff      ", "Mother", "Neutral Affect", 1, "duration",
   "v2sfreneuaff      ", "Mother", "Neutral Affect", 3, "duration",
  
-   # low positive affect duration, baseline and reunion
+   # Low positive affect duration, baseline and reunion
   "v2sfblposaffL     ", "Mother", "Positive Affect", 1, "duration",
   "v2sfreposaffL     ", "Mother", "Positive Affect", 3, "duration",
  
-   # high positive affect duration, baseline and reunion
+   # High positive affect duration, baseline and reunion
   "v2sfblposaffH     ", "Mother", "High Positive Affect", 1, "duration",
   "v2sfreposaffH     ", "Mother", "High Positive Affect", 3, "duration",
 
-  # ------------------------------------------------------------------------------ 
+  # ------------------------------------------------------------------------------
   
-  # --- mom talk/touch: baseline / reunion only ---
+  # --- Mom talk/touch: baseline / reunion only ---
   # (Still Face is excluded by task design -- mom isn't allowed to
-  # talk/touch during Still Face, so there's nothing to score there.)
-  # talking/touching duration, baseline and reunion
+  # Talk/touch during Still Face, so there's nothing to score there.)
+  # Talking/touching duration, baseline and reunion
   "v2sfbltlktch      ", "Mother", "Mom Talking/Touching Infant", 1, "duration",
   "v2sfretlktch      ", "Mother", "Mom Talking/Touching Infant", 3, "duration",
  
@@ -737,14 +794,14 @@ SCORE_SPEC <- tribble(
   
 ) %>%
   # The extra spaces padded onto every var_name above are only there so the
-  # table lines up visually in the source code. Without trimming them off
-  # here, those spaces become part of the actual variable name, and
-  # pivot_wider() (below) bakes trailing-space column names into the
-  # output -- which then breaks every `scores$v2sf...` reference downstream
+  # Table lines up visually in the source code. Without trimming them off
+  # Here, those spaces become part of the actual variable name, and
+  # Pivot_wider() (below) bakes trailing-space column names into the
+  # Output -- which then breaks every `scores$v2sf...` reference downstream
   mutate(var_name = str_trim(var_name))
 ```
 
-# 8. Reshape one subject to wide, and add joint attention
+## 8. Reshape one subject to wide, and add joint attention
 
 This is the long-to-wide transformation step: for one subject, look up
 every value listed in `SCORE_SPEC`, then pivot those values into one
@@ -752,11 +809,11 @@ wide row.
 
 ```{r}
 #| label: compute-spec-values
-# Function to transform data from long to wide 
+# ── Transform Event-Level Data to Scored Variables ──────────────────────────────
 compute_spec_values_one_subject <- function(data) {
   SCORE_SPEC %>%
     mutate(
-      #pmap_dbl() walks the four spec columns (subject, behavior, episode, metric) row by row and returns one number per row
+      # Pmap_dbl() walks the four spec columns (subject, behavior, episode, metric) row by row and returns one number per row
       value = pmap_dbl(
         list(subject, behavior, episode, metric),
         function(subj, behavior, episode, metric) {
@@ -779,7 +836,7 @@ compute_spec_values_one_subject <- function(data) {
 
 ```{r}
 #| label: raw-scores-function
-# Function to compute scores, using the functions created above
+# ── Calculate One Subject's Full Score Set ──────────────────────────────────────
 compute_raw_scores_one_subject <- function(data) {
 
   # This subject's ID (data has already been filtered to one subject)
@@ -790,10 +847,10 @@ compute_raw_scores_one_subject <- function(data) {
 
   # Start a one-row tibble with just the ID,
   scores <- tibble(ID = subject_id) %>%
-    # then attach all of the SCORE_SPEC columns next to it
+    # Then attach all of the SCORE_SPEC columns next to it
     bind_cols(spec_values)
 
-  # Joint attention: Baseline and Reunion only 
+  # Joint attention: Baseline and Reunion only
   scores$v2sfbljntatn <- compute_overlap_duration(
     data, "Mother", "Mom Talking/Touching Infant", "Infant", "Looking at Mom", episode = 1
   )
@@ -819,11 +876,11 @@ compute_raw_scores_one_subject <- function(data) {
 
 ```{r}
 #| label: episode-boundary-times-function
-# Function to add episode start and end times as new rows in dataset
+# ── Attach Episode Boundary Times ───────────────────────────────────────────────
 add_episode_boundary_times <- function(scores, data, anchors) {
 
   # One row per episode: which number it is, its prefix, and which anchor
-  # columns mark its start/end Code numbers.
+  # Columns mark its start/end Code numbers
   episode_info <- tribble(
     ~episode, ~prefix,   ~start_col,       ~end_col,
     1,        "v2sfbl",  "bl_start",       "bl_end",
@@ -844,20 +901,20 @@ add_episode_boundary_times <- function(scores, data, anchors) {
     end_code <- anchors[[episode_info$end_col[i]]]
 
     # Look up the literal boundary values directly -- anchors always
-    # point to a real row (get_episode_anchors() already stops if a
-    # marker is missing), so these are always available regardless of
-    # whether any behavior was actually coded inside the episode
+    # Point to a real row (get_episode_anchors() already stops if a
+    # Marker is missing), so these are always available regardless of
+    # Whether any behavior was actually coded inside the episode
     start_hms <- data %>% filter(Code == start_code) %>% pull(Time_Relative_hms)
     end_hms   <- data %>% filter(Code == end_code)   %>% pull(Time_Relative_hms)
     start_sec <- data %>% filter(Code == start_code) %>% pull(Time_Relative_sf)
     end_sec   <- data %>% filter(Code == end_code)   %>% pull(Time_Relative_sf)
 
     # Blank the boundary times only when the episode is truly empty:
-    # start and end land on the exact same moment AND no real (non-marker)
-    # behavior was coded anywhere in the episode. An episode with a real,
-    # nonzero span but no coded behavior inside it keeps its boundary
-    # times -- only its duration/count variables get blanked elsewhere,
-    # by blank_uncoded_episodes()
+    # Start and end land on the exact same moment AND no real (non-marker)
+    # Behavior was coded anywhere in the episode. An episode with a real,
+    # Nonzero span but no coded behavior inside it keeps its boundary
+    # Times -- only its duration/count variables get blanked elsewhere,
+    # By blank_uncoded_episodes()
     if (start_sec == end_sec && !episode_has_codes(data, episode)) {
       start_hms <- NA_character_
       end_hms   <- NA_character_
@@ -866,13 +923,13 @@ add_episode_boundary_times <- function(scores, data, anchors) {
     }
 
     # Write all four boundary columns into `scores`, using this episode's
-    # prefix to build the right column names (e.g. "v2sfblepistarthms")
+    # Prefix to build the right column names (e.g. "v2sfblepistarthms")
     scores[[paste0(prefix, "epistarthms")]] <- start_hms
     scores[[paste0(prefix, "epiendhms")]]   <- end_hms
     scores[[paste0(prefix, "epistart")]]    <- start_sec
     scores[[paste0(prefix, "epiend")]]      <- end_sec
     # Episode length in seconds (end minus start; NA automatically if
-    # either side is NA).
+    # Either side is NA)
     scores[[paste0(prefix, "epi")]]         <- end_sec - start_sec
   }
 
@@ -881,15 +938,15 @@ add_episode_boundary_times <- function(scores, data, anchors) {
 }
 ```
 
-# 9. Validate the merged raw dataset
+## 9. Validate the merged raw dataset
 
 ```{r}
 #| label: validate-function
-# Function for data validation
+# ── Validate the Merged Scored Dataset ──────────────────────────────────────────
 validate_raw_dataset <- function(dataset) {
 
   # Count how many rows each ID appears in, then keep only IDs that show
-  # up more than once
+  # Up more than once
   duplicate_ids <- dataset %>%
     count(ID) %>%
     filter(n > 1)
@@ -904,11 +961,11 @@ validate_raw_dataset <- function(dataset) {
 }
 ```
 
-# 10. Run it: import, score, and merge every subject
+## 10. Run it: import, score, and merge every subject
 
 ```{r}
 #| label: find-files
-# Find every raw event log file (one per subject, inside their ID folder).
+# ── Discover Raw and Consensus Files ────────────────────────────────────────────
 files_full <- list.files(
   path = PATH_EVENT_LOGS,
   pattern = "Event.?Logs\\.xlsx$",
@@ -970,7 +1027,7 @@ if (nrow(duplicate_consensus_ids) > 0) {
   )
 }
 
-# For every ID, prefer the consensus file when one exists
+# ── Resolve Raw Versus Consensus Sources ────────────────────────────────────────
 file_lookup <- bind_rows(consensus_lookup, original_lookup) %>%
   distinct(ID, .keep_all = TRUE) %>%
   arrange(ID)
@@ -991,14 +1048,14 @@ files_final <- file_lookup$path
 ```{r}
 #| label: blank-row-log
 # Running log of blank/empty template rows found and dropped, across
-# every subject -- rebuilt fresh each time the pipeline runs.
+# Every subject -- rebuilt fresh each time the pipeline runs
 BLANK_ROW_LOG <- tibble(ID = character(), file = character(), n_blank_rows = integer())
 ```
 
 ```{r}
 #| label: process-all-subjects
-# For every file: import + label it, then compute its one-row wide score
-# set, then stack every subject's row into a single dataset
+# ── Process and Merge All Subjects ──────────────────────────────────────────────
+# Set, then stack every subject's row into a single dataset
 SF_RAW <- map_dfr(files_final, function(filename_full) {
   # Import, validate, and label this one subject's raw data
   data <- import_and_label_one_subject(filename_full)
@@ -1022,12 +1079,12 @@ if (nrow(BLANK_ROW_LOG) > 0) {
 }
 ```
 
-# 11. Episode boundary check
+## 11. Episode boundary check
 
 ```{r}
 #| label: episode-timing-check
-# Pull  the boundary-time columns out of SF_RAW, reshape them from
-# wide (one column per episode/boundary) to long (one row per
+# ── Compare Calculated Episode Boundaries With Coding Log ───────────────────────
+# Wide (one column per episode/boundary) to long (one row per
 # ID x episode), and compute each episode's duration
 EPISODE_TIMING_CHECK <- SF_RAW %>%
   select(ID,
@@ -1051,7 +1108,7 @@ EPISODE_TIMING_CHECK <- SF_RAW %>%
   select(ID, episode, start_hms, end_hms, start_sec, end_sec, duration_sec) %>%
   arrange(ID, episode)
 
-# Read the "6 Months" tab, skipping the first two rows so row 3 becomes the header 
+# Read the "6 Months" tab, skipping the first two rows so row 3 becomes the header
 CODING_LOG_RAW <- read_excel(
   PATH_CODING_LOG,
   sheet = "6 Months",
@@ -1065,8 +1122,8 @@ ACTUAL_START_STOP <- CODING_LOG_RAW %>%
   mutate(ID = as.character(ID))
 
 # Reshape the three episode range columns to long format for the
-# mmss comparison below. COMMENTS stays in the wide ACTUAL_START_STOP
-# table and gets joined back in at the end
+# Mmss comparison below. COMMENTS stays in the wide ACTUAL_START_STOP
+# Table and gets joined back in at the end
 actual_long <- ACTUAL_START_STOP %>%
   pivot_longer(
     cols = c(Baseline, `Still Face`, Reunion),
@@ -1087,7 +1144,7 @@ actual_long <- ACTUAL_START_STOP %>%
   mutate(boundary = if_else(boundary == "actual_start_mmss", "Start", "End"))
 
 # Reshape R's own calculated times the same way, so the two sides can be
-# joined boundary-by-boundary
+# Joined boundary-by-boundary
 r_long <- EPISODE_TIMING_CHECK %>%
   select(ID, episode, start_hms, end_hms, start_sec, end_sec) %>%
   pivot_longer(
@@ -1098,15 +1155,15 @@ r_long <- EPISODE_TIMING_CHECK %>%
   rename(r_mmss = hms, r_sec = sec) %>%
   mutate(boundary = if_else(boundary == "start", "Start", "End"))
 
-# Convert time variables to the same format 
+# Convert time variables to the same format
 to_seconds <- function(x) {
   parts <- str_split(str_trim(x), ":")
   map_dbl(parts, function(p) {
     p <- as.numeric(p)
     if (length(p) == 2) {
-      p[1] * 60 + p[2]                    # M:SS
+      p[1] * 60 + p[2]  # M:SS
     } else if (length(p) == 3) {
-      p[1] * 3600 + p[2] * 60 + p[3]       # H:MM:SS
+      p[1] * 3600 + p[2] * 60 + p[3]  # H:MM:SS
     } else {
       NA_real_
     }
@@ -1142,7 +1199,7 @@ EPISODE_BOUNDARY_FLAGGED <- EPISODE_BOUNDARY_COMPARISON %>%
 knitr::kable(EPISODE_BOUNDARY_FLAGGED, caption = "Episode Boundary Comparison: Raw Data vs. Coding Log (Flagged Subjects)")
 ```
 
-# 12. Final review {#sec-preview-raw}
+## 12. Final review {#sec-preview-raw}
 
 This portfolio page does not syntax for final variable scoring (e.g.
 total duration across episodes, proportions scores) That syntax was
@@ -1150,8 +1207,8 @@ written SPSS syntax file, per request of lead behavioral coder.
 
 ```{r}
 #| label: final-review
-# A one-row summary: how many subjects made it into SF_RAW, and how many
-# variables (columns) it has (minus 1 to exclude the ID column itself).
+# ── Summarize Final Scored Dataset ──────────────────────────────────────────────
+# Variables (columns) it has (minus 1 to exclude the ID column itself)
 knitr::kable(tibble(
   n_subjects = n_distinct(SF_RAW$ID),
   n_variables = ncol(SF_RAW) - 1

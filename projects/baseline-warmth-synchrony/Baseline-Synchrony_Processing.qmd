@@ -2,6 +2,7 @@
 title: Baseline Synchrony Processing
 toc: true
 toc-depth: 3
+bibliography: references.bib
 warning: false
 editor: 
   markdown: 
@@ -10,19 +11,37 @@ editor:
 
 # Overview
 
-This page performs the initial cleaning and reshaping of the baseline
-couple interaction warmth data, ahead of the second-by-second synchrony
-calculation carried out on [Baseline Synchrony
-Calculation](Baseline-Synchrony_Calculation.qmd). Four steps happen
-here:
+This is the second page of a three-page workflow examining
+**moment-to-moment dyadic dynamics in baseline couple interaction warmth**.
+It begins with the validated wide-format baseline warmth dataset created on the
+[Import & Reliability](Import_BL_WH_Syntax_annotated_v4.qmd) page and prepares the second-by-second
+trajectories used in the synchrony analysis.
 
-1.  the raw wide-format SPSS export (one row per couple, one column per
-    second) is reshaped into long format (one row per couple-second);
-2.  missing-value codes are recoded to `NA`;
-3.  the data is split into separate negative- and positive-discussion
-    long datasets, one row per person per second; and
-4.  warmth trajectories over time are plotted, both for the full sample
-    and a representative subset in [Panel Plots](#secPanel).
+The processing workflow:
+
+1. reshapes the wide SPSS file from one row per couple with one column per
+   second into one row per couple-second;
+2. recodes the missing-value placeholder to `NA`;
+3. creates separate positive- and negative-discussion person-level long
+   datasets for mom and partner;
+4. saves the three analysis ready long files used by the synchrony calculation;
+   and
+5. plots warmth trajectories for the full sample and a representative subset
+   as a visual data-quality and interpretive check.
+
+::: {.callout-note appearance="simple" icon="false"}
+### Workflow
+
+**1. Import & Reliability** → **2. Processing & Visualization** → **3. Synchrony Calculation**
+
+[Import & Reliability](Import_BL_WH_Syntax_annotated_v4.qmd) · [Processing & Visualization](Baseline-Synchrony_Processing.qmd) · [Synchrony Calculation](Baseline-Synchrony_Calculation.qmd)
+:::
+
+
+The preceding page documents the original CARMA import, validation, and
+reliability workflow: [Import & Reliability](Import_BL_WH_Syntax_annotated_v4.qmd). The next page
+uses the processed long-format files to calculate concurrent and time-lagged
+synchrony: [Synchrony Calculation](Baseline-Synchrony_Calculation.qmd).
 
 # Data Cleaning
 
@@ -32,6 +51,8 @@ here:
 #| label: packages
 #| warning: false
 #| output: false
+
+# Load packages used for reshaping, visualization, time-series analysis, modeling, and formatted output
 library(here)
 library(nlme)
 library(tidyverse)
@@ -58,7 +79,7 @@ BL_WH <- read_sav("C:/Users/rcm5550/Box/ff (cast.casbox )/DATA & SYNTAX/COMPUTED
 #| eval: false
 
 # Row-level preview suppressed for the public site since it would print
-# real values even with the code hidden. Flip eval to true to preview locally.
+# Real values even with the code hidden. Flip eval to true to preview locally
 knitr::kable(head(BL_WH, n = 5)[1:6], caption = "Raw Baseline Warmth Data")
 ```
 
@@ -80,7 +101,7 @@ calculation.
 # Transform data wide to long
 BL_WH_WidetoLong <- BL_WH %>%
   pivot_longer(
-    # Select columns like blmnwh.6, blmnwh.7, etc.
+    # Select columns like blmnwh.6, blmnwh.7, etc
     cols = matches("^[^.]+\\.\\d+$"), 
     
     # Split variable name based on period
@@ -115,8 +136,8 @@ knitr::kable(head(BL_WH_Long, 5), caption = "Long Baseline Warmth Data")
 ```{r}
 #| label: create negative interaction dataset
 
-# Create long format for negative interaction 
-##(blmnwh = mom, blfnwh = partner)
+# Create long format for negative interaction
+# (Blmnwh = mom, blfnwh = partner)
 
 BL_WH_Neg_Long <- BL_WH_Long %>%
   select(ID, second, blmnwh, blfnwh) %>%
@@ -126,11 +147,11 @@ BL_WH_Neg_Long <- BL_WH_Long %>%
     values_to = "blnwh") %>%
   mutate(
     personF = case_when(
-      source == "blmnwh" ~ "mom",        #mom
-      source == "blfnwh" ~ "partner" ),  #partner
+      source == "blmnwh" ~ "mom",  # Mom
+      source == "blfnwh" ~ "partner" ),  # Partner
     personN = case_when(
-      source == "blmnwh" ~ 1,    #mom
-      source == "blfnwh" ~ 2 ))  #partner 
+      source == "blmnwh" ~ 1,  # Mom
+      source == "blfnwh" ~ 2 ))  # Partner
 
 # Set personF as factor
 BL_WH_Neg_Long$personF <- as.factor(BL_WH_Neg_Long$personF)
@@ -147,8 +168,8 @@ knitr::kable(head(BL_WH_Neg_Long, 20), caption = "Long Baseline Warmth Negative 
 ```{r}
 #| label: create positive interaction dataset
 
-# Create long format for positive interaction 
-##(blmpwh = mom, blfpwh = partner)
+# Create long format for positive interaction
+# (Blmpwh = mom, blfpwh = partner)
 
 BL_WH_Pos_Long <- BL_WH_Long %>%
   select(ID, second, blmpwh, blfpwh) %>%
@@ -158,11 +179,11 @@ BL_WH_Pos_Long <- BL_WH_Long %>%
     values_to = "blpwh") %>%
   mutate(
     personF = case_when(
-      source == "blmpwh" ~ "mom",        #mom
-      source == "blfpwh" ~ "partner" ),  #partner
+      source == "blmpwh" ~ "mom",  # Mom
+      source == "blfpwh" ~ "partner" ),  # Partner
     personN = case_when(
-      source == "blmpwh" ~ 1,    #mom
-      source == "blfpwh" ~ 2 ))  #partner 
+      source == "blmpwh" ~ 1,  # Mom
+      source == "blfpwh" ~ 2 ))  # Partner
 
 # Set personF as factor
 BL_WH_Pos_Long$personF <- as.factor(BL_WH_Pos_Long$personF)
@@ -174,10 +195,31 @@ BL_WH_Pos_Long$personN <- as.numeric(BL_WH_Pos_Long$personN)
 knitr::kable(head(BL_WH_Pos_Long, 20), caption = "Long Baseline Warmth Positive Interaction Data")
 ```
 
-These three long-format datasets (`BL_WH_Long`, `BL_WH_Pos_Long`,
-`BL_WH_Neg_Long`) are not re-exported here; the [Baseline Synchrony
-Calculation](Baseline-Synchrony_Calculation.qmd) page reads the same
-processed data from where it's already saved.
+The three long-format datasets are saved in a hidden export chunk so the
+visible page stays focused on transformation and quality checks while the
+[Synchrony Calculation](Baseline-Synchrony_Calculation.qmd) page can
+read the exact processed files produced here.
+
+```{r}
+#| label: save-processed-data
+#| include: false
+
+# ── Save Analysis-Ready Long Files ────────────────────────────────────────────
+# Define the directory consumed by the synchrony calculation page
+SYNC_OUTPUT_DIR <- "C:/Users/rcm5550/OneDrive - The Pennsylvania State University/SFF Synchrony/Processed Data"
+
+# Create the output directory when it does not already exist
+dir.create(SYNC_OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# Save the complete couple-second dataset used as the shared processed source
+write_csv(BL_WH_Long, file.path(SYNC_OUTPUT_DIR, "BL_WH_Long.csv"))
+
+# Save the positive-discussion person-level trajectories
+write_csv(BL_WH_Pos_Long, file.path(SYNC_OUTPUT_DIR, "BL_WH_Pos_Long.csv"))
+
+# Save the negative-discussion person-level trajectories
+write_csv(BL_WH_Neg_Long, file.path(SYNC_OUTPUT_DIR, "BL_WH_Neg_Long.csv"))
+```
 
 ## Panel Plots {#secPanel}
 
@@ -195,6 +237,7 @@ than smoothed away.
 #| code-fold: true
 #| code-summary: "figure code"
 
+# Plot all negative-discussion warmth trajectories to inspect dyad-level patterns and potential data anomalies
 fig_blnegative_warmth <- ggplot(data = BL_WH_Neg_Long, aes(second, blnwh, color = personF)) +
   geom_smooth(linewidth = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +
@@ -228,6 +271,7 @@ ggsave("../../figures/baseline-warmth-synchrony/processing/fig-blnegative-warmth
 #| code-fold: true
 #| code-summary: "figure code"
 
+# Plot all positive-discussion warmth trajectories to inspect dyad-level patterns and potential data anomalies
 fig_blpositive_warmth <- ggplot(data = BL_WH_Pos_Long, aes(second, blpwh, color = personF)) +
   geom_smooth(linewidth = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +
@@ -260,7 +304,7 @@ ggsave("../../figures/baseline-warmth-synchrony/processing/fig-blpositive-warmth
 #| label: create-subset-for-plots
 #| include: false
 # Select Sample Couples for Facet Plots
-#create filtered dataset for plot
+# Create filtered dataset for plot
 
 BL_WH_Neg_Long_Filtered <- BL_WH_Neg_Long %>%
   filter(ID %in% c(110, 112, 149, 162, 172, 178, 175, 182, 183, 209, 246, 254, 279, 303))
@@ -274,6 +318,7 @@ BL_WH_Pos_Long_Filtered <- BL_WH_Pos_Long %>%
 #| code-fold: true
 #| code-summary: "figure code"
 
+# Plot a smaller negative-discussion subset so within-couple temporal patterns remain visually interpretable
 fig_blnegative_warmth_subset <- ggplot(data = BL_WH_Neg_Long_Filtered %>% filter(ID %in% head(unique(ID), 3)), aes(second, blnwh, color = personF)) +
   geom_line(lwd = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +
@@ -308,6 +353,7 @@ ggsave("../../figures/baseline-warmth-synchrony/processing/fig-blnegative-warmth
 #| label: blpositive-warmth-subset
 #| code-fold: true
 
+# Plot a smaller positive-discussion subset so within-couple temporal patterns remain visually interpretable
 fig_blpositive_warmth_subset <- ggplot(data = BL_WH_Pos_Long_Filtered %>% filter(ID %in% head(unique(ID), 3)), aes(second, blpwh, color = personF)) +
   geom_line(lwd = 1.5) +
   scale_color_manual(values = c("mom" = "#CC6677", "partner" = "#88CCEE"), name = "Person") +

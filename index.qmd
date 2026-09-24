@@ -35,12 +35,12 @@ composites, then testing protective factors against those composites.
 :::
 
 ::: {.g-col-12 .g-col-md-6}
-### [Baseline Warmth & Synchrony Processing](projects/baseline-warmth-synchrony/Baseline-Synchrony_Calculation.qmd)
+### [Warmth & Synchrony Processing](projects/baseline-warmth-synchrony/Import_BL_WH_Syntax_annotated_v4.qmd)
 
 An end-to-end pipeline for CARMA-coded parent-infant warmth data, from
 raw second-by-second video coding through inter-rater reliability to
 time-lagged cross-correlation synchrony between mother and partner
-warmth during a baseline observed interaction.
+warmth during an observed interaction paradigm.
 
 **Tools:** R
 :::

@@ -12,6 +12,8 @@ format:
 editor:
   markdown:
     wrap: 72
+execute:
+  freeze: true
 ---
 
 # Project Overview
@@ -45,7 +47,7 @@ analysis, interpretation, visualization, and reproducible documentation
 as part of a multidisciplinary research team.
 :::
 
-The analysis proceeds in five steps:
+The analysis proceeds in the following steps:
 
 [Step 0](#sec-step0): Wave I structural disadvantage indicators are used to build
 **outcome-specific disadvantage composites** [@marquez2023].
@@ -61,9 +63,8 @@ or worse than expected given their adolescent disadvantage exposure.
 and community) are tested as **predictors of resilience** in the full
 sample.
 
-[Step 4](#sec-step4): Exploratory low- and high-disadvantage subgroup estimates
-are paired with **formal interaction tests** to evaluate whether
-associations differ as disadvantage increases.
+[Step 4](#sec-step4): Exploratory low- and high-disadvantage subgroup regressions
+to evaluate whether resilience factors are protective or promotive. 
 
 ## Reproducible Analysis Environment
 
